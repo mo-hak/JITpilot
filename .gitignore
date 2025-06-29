@@ -9,6 +9,8 @@ out/
 
 # Docs
 docs/
+CursorPrompt.md
+RebalancingSystemDesign.md
 
 # Dotenv file
 .env

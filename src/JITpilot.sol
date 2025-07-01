@@ -1,10 +1,14 @@
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.17;
+import { IERC20 } from "lib/euler-vault-kit/src/EVault/IEVault.sol";
+import {IEulerSwap} from "lib/euler-swap/src/interfaces/IEulerSwap.sol";
+import {IEVault} from "lib/euler-vault-kit/src/EVault/IEVault.sol";
 
 /**
  * @title JITpilot Health Checker Keeper
  * @notice Automates partial debt repayment for JIT liquidity vaults based on dynamic LTV and net interest thresholds.
  */
-contract JITpilotKeeper{
+contract JITpilotKeeper {
     // --- State variables ---
 
     /// @notice Trigger LTV (in basis points, e.g., 80% = 8000)
@@ -22,7 +26,7 @@ contract JITpilotKeeper{
         address collateralToken,
         address debtToken,
         uint256 triggerLTV,
-        uint256 targetLTV,
+        uint256 targetLTV
     ) {
         s_collateral = IERC20(collateralToken);
         s_debt = IERC20(debtToken);
@@ -36,8 +40,8 @@ contract JITpilotKeeper{
      * @return performData Payload for performUpkeep (empty here)
      */
     function checkUpkeep(
-        bytes calldata /* checkData */
-    ) public view override returns (bool upkeepNeeded, bytes memory performData) {
+        bytes memory /* checkData */
+    ) public view returns (bool upkeepNeeded, bytes memory performData) {
         uint256 currentLTV_ = _currentLTV();
         int256 netInterest_ = _currentNetInterest();
 
@@ -54,7 +58,7 @@ contract JITpilotKeeper{
     /**
      * @notice Called by keepre/hook/bot to perform the partial debt repayment
      */
-    function performUpkeep(bytes calldata /* performData */) external override nonReentrant {
+    function performUpkeep(bytes memory /* performData */) external {
         (bool upkeepNeeded, ) = checkUpkeep("");
         if (!upkeepNeeded) {
             revert("JITpilotKeeper: Upkeep not needed");
@@ -65,9 +69,16 @@ contract JITpilotKeeper{
     // --- Helper functions ---
 
     /// @dev Returns current LTV
-    function _currentLTV() internal view returns (uint256) {
+    function _currentLTV(address account, address eulerSwap) internal view returns (uint256) {
         // IMPLEMENT: Query Eulerswap to get collateral & debt
         // Compute: (debtUSD * 10000) / collateralUSD
+        // figure out which vault is being borrowed from
+        IEulerSwap _eulerSwap = IEulerSwap(eulerSwap);
+        IEVault _vault_0 = IEVault(_eulerSwap.getParams().vault0);
+        IEVault _vault_1 = IEVault(_eulerSwap.getParams().vault1);
+        
+
+        
         return 0;
     }
 

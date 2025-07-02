@@ -1,12 +1,12 @@
 [submodule "lib/forge-std"]
 	path = lib/forge-std
 	url = https://github.com/foundry-rs/forge-std
-[submodule "lib/euler-swap"]
-	path = lib/euler-swap
+[submodule "libflat/euler-swap"]
+	path = libflat/euler-swap
 	url = https://github.com/euler-xyz/euler-swap
-[submodule "lib/ethereum-vault-connector"]
-	path = lib/ethereum-vault-connector
-	url = https://github.com/euler-xyz/ethereum-vault-connector
-[submodule "lib/euler-vault-kit"]
-	path = lib/euler-vault-kit
+[submodule "libflat/euler-vault-kit"]
+	path = libflat/euler-vault-kit
 	url = https://github.com/euler-xyz/euler-vault-kit
+[submodule "libflat/ethereum-vault-connector"]
+	path = libflat/ethereum-vault-connector
+	url = https://github.com/euler-xyz/ethereum-vault-connector

@@ -5,14 +5,14 @@ import {Script, console} from "forge-std/Script.sol";
 import {JITpilot} from "../src/JITpilot.sol";
 
 contract JITpilotScript is Script {
-    JITpilot public JITpilot;
+    // JITpilot public JITpilot;
 
     function setUp() public {}
 
     function run() public {
         vm.startBroadcast();
 
-        JITpilot = new JITpilot();
+        // JITpilot = new JITpilot();
 
         vm.stopBroadcast();
     }

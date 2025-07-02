@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
-import {IEVC} from "lib/ethereum-vault-connector/src/interfaces/IEthereumVaultConnector.sol";
-import {IEVault, IERC20} from "lib/euler-vault-kit/src/EVault/IEVault.sol";
-import {RPow} from "lib/euler-vault-kit/src/EVault/shared/lib/RPow.sol";
-import {IEulerSwapFactory} from "lib/euler-swap/src/interfaces/IEulerSwapFactory.sol";
-import {IEulerSwap} from "lib/euler-swap/src/interfaces/IEulerSwap.sol";
+import {IEVC} from "evc/interfaces/IEthereumVaultConnector.sol";
+import {IEVault, IERC20} from "evk/EVault/IEVault.sol";
+import {RPow} from "evk/EVault/shared/lib/RPow.sol";
+import {IEulerSwapFactory} from "euler-swap/interfaces/IEulerSwapFactory.sol";
+import {IEulerSwap} from "euler-swap/interfaces/IEulerSwap.sol";
 
 contract MaglevLens {
     // Packed: underlying asset (address), decimals (uint8), symbol (variable)

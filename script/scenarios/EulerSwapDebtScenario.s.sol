@@ -12,7 +12,6 @@ import {TestERC20} from "evk-test/unit/evault/EVaultTestBase.t.sol";
 import {IEVault} from "evk/EVault/IEVault.sol";
 
 contract EulerSwapDebtScenario is DeployScenario {
-
     address eulerSwap;
     JITpilot jitPilot;
 
@@ -38,7 +37,7 @@ contract EulerSwapDebtScenario is DeployScenario {
 
         jitPilot.getData(user2);
         console.log("user2", user2);
-        
+
         // buy USDC so that user2's EulerSwap position has to borrow
         uint256 amountOut = 286_500_000e6;
         _swapExactOut(address(assetWETH), address(assetUSDC), amountOut, user0, user0PK);
@@ -66,7 +65,7 @@ contract EulerSwapDebtScenario is DeployScenario {
 
     function createEulerSwap() internal {
         vm.startBroadcast(user2PK);
-        
+
         // Create pool parameters
         IEulerSwap.Params memory poolParams = IEulerSwap.Params({
             vault0: address(eUSDC),
@@ -85,24 +84,20 @@ contract EulerSwapDebtScenario is DeployScenario {
 
         // Define required hook flags
         uint160 flags = uint160(
-            Hooks.BEFORE_INITIALIZE_FLAG | 
-            Hooks.BEFORE_SWAP_FLAG | 
-            Hooks.BEFORE_SWAP_RETURNS_DELTA_FLAG |
-            Hooks.BEFORE_DONATE_FLAG | 
-            Hooks.BEFORE_ADD_LIQUIDITY_FLAG
+            Hooks.BEFORE_INITIALIZE_FLAG | Hooks.BEFORE_SWAP_FLAG | Hooks.BEFORE_SWAP_RETURNS_DELTA_FLAG
+                | Hooks.BEFORE_DONATE_FLAG | Hooks.BEFORE_ADD_LIQUIDITY_FLAG
         );
-        
+
         // Mine salt
         bytes memory creationCode = MetaProxyDeployer.creationCodeMetaProxy(eulerSwapImpl, abi.encode(poolParams));
         (address hookAddress, bytes32 salt) = HookMiner.find(address(eulerSwapFactory), flags, creationCode);
-        
+
         eulerSwap = hookAddress;
         evc.setAccountOperator(user2, eulerSwap, true);
 
-        eulerSwapFactory.deployPool(poolParams, IEulerSwap.InitialState({
-            currReserve0: 800_000_000e6,
-            currReserve1: 280_000e18
-        }), salt);
+        eulerSwapFactory.deployPool(
+            poolParams, IEulerSwap.InitialState({currReserve0: 800_000_000e6, currReserve1: 280_000e18}), salt
+        );
 
         string memory result = vm.serializeAddress("eulerSwap", "eulerSwap", address(eulerSwap));
         vm.writeJson(result, "./dev-ctx/addresses/31337/EulerSwapAddresses.json");
@@ -114,7 +109,7 @@ contract EulerSwapDebtScenario is DeployScenario {
         TestERC20(IEVault(vaultAddress).asset()).mint(user, amount);
         TestERC20(IEVault(vaultAddress).asset()).approve(vaultAddress, type(uint256).max);
         IEVault(vaultAddress).deposit(amount, user);
-        
+
         if (!evc.isCollateralEnabled(user, vaultAddress)) {
             evc.enableCollateral(user, vaultAddress);
         }
@@ -132,18 +127,15 @@ contract EulerSwapDebtScenario is DeployScenario {
         }
 
         IEVault(vaultAddress).borrow(amount, user);
-        
+
         vm.stopBroadcast();
     }
 
-    function _swapExactOut(address tokenIn, address tokenOut, uint256 amountOut, address receiver, uint256 userPK) internal {
+    function _swapExactOut(address tokenIn, address tokenOut, uint256 amountOut, address receiver, uint256 userPK)
+        internal
+    {
         vm.startBroadcast(userPK);
-        uint256 amountIn = eulerSwapPeriphery.quoteExactOutput(
-            eulerSwap,
-            tokenIn,
-            tokenOut,
-            amountOut
-        );
+        uint256 amountIn = eulerSwapPeriphery.quoteExactOutput(eulerSwap, tokenIn, tokenOut, amountOut);
         console.log("amountIn", amountIn);
 
         TestERC20(tokenIn).approve(address(eulerSwapPeriphery), type(uint256).max);

@@ -23,7 +23,6 @@ contract JITpilot {
     uint256 private constant PRECISION = 1e18;
 
     // Configurable parameters
-    uint256 public rebalanceThreshold = 5e17; // 0.5 in 18 decimals
     uint256 public weightHF = 6e17; // 0.6 weight for Health Factor
     uint256 public weightYield = 4e17; // 0.4 weight for Yield
 
@@ -54,6 +53,9 @@ contract JITpilot {
         uint256 hfMin; // Liquidation threshold
         uint256 hfDesired; // Target health factor set by LP
         uint256 yieldTarget; // Target yield set by LP
+        // Calculated thresholds (computed once during configuration)
+        uint256 rebalanceThreshold; // Threshold below which rebalancing is triggered
+        uint256 rebalanceDesired; // Target score to achieve after rebalancing
         // Tracking
         uint256 lastUpdateBlock; // Last block when metrics were updated
         uint256 startBlock; // Block when LP started
@@ -75,9 +77,7 @@ contract JITpilot {
         uint256 compositeScore
     );
 
-    event RebalanceTriggered(
-        address indexed lp, uint256 indexed blockNumber, uint256 compositeScore, uint256 threshold
-    );
+    event RebalanceTriggered(address indexed lp, uint256 indexed blockNumber, uint256 compositeScore, uint256 threshold, uint256 targetScore);
 
     event LPConfigured(address indexed lp, uint256 hfMin, uint256 hfDesired, uint256 yieldTarget);
 
@@ -132,6 +132,10 @@ contract JITpilot {
         data.yieldTarget = _yieldTarget;
         data.initialized = true;
         data.startBlock = block.number;
+
+        // Calculate and store thresholds once during configuration
+        data.rebalanceThreshold = calculateRebalanceThreshold(lp);
+        data.rebalanceDesired = calculateRebalanceDesired(lp);
 
         emit LPConfigured(lp, _hfMin, _hfDesired, _yieldTarget);
     }
@@ -194,10 +198,10 @@ contract JITpilot {
         // Emit metrics updated event
         emit MetricsUpdated(lp, block.number, currentHF, currentYield, data.twaHF, data.twaYield, compositeScore);
 
-        // Check if rebalancing is needed
-        if (compositeScore < rebalanceThreshold) {
-            emit RebalanceTriggered(lp, block.number, compositeScore, rebalanceThreshold);
-            rebalance(lp);
+        // Check if rebalancing is needed using stored threshold values
+        if (compositeScore < data.rebalanceThreshold) {
+            emit RebalanceTriggered(lp, block.number, compositeScore, data.rebalanceThreshold, data.rebalanceDesired);
+            rebalance(lp, data.rebalanceDesired);
         }
     }
 
@@ -268,6 +272,36 @@ contract JITpilot {
         if (twaYield >= yieldTarget) return PRECISION;
 
         return (twaYield * PRECISION) / yieldTarget;
+    }
+
+    /**
+     * @dev Calculate dynamic rebalance threshold based on LP configuration (placeholder)
+     * @param lp LP address
+     * @return rebalanceThreshold Dynamic threshold based on hfMin and safety margin
+     */
+    function calculateRebalanceThreshold(address lp) internal view returns (uint256) {
+        LPData storage data = lpData[lp];
+        if (!data.initialized) return 0;
+        
+        // Placeholder implementation - to be researched and implemented
+        // Should calculate threshold based on hfMin as main parameter
+        // with thresholdSafetyMargin for fine-tuning
+        return 5e17; // Default 0.5 for now
+    }
+    
+    /**
+     * @dev Calculate dynamic rebalance desired target based on LP configuration (placeholder)
+     * @param lp LP address
+     * @return rebalanceDesired Target score to achieve after rebalancing
+     */
+    function calculateRebalanceDesired(address lp) internal view returns (uint256) {
+        LPData storage data = lpData[lp];
+        if (!data.initialized) return 0;
+        
+        // Placeholder implementation - to be researched and implemented
+        // Should calculate target based on hfDesired and yieldTarget as main parameters
+        // with desiredTargetRatio for fine-tuning
+        return 8e17; // Default 0.8 for now
     }
 
     /**
@@ -418,11 +452,13 @@ contract JITpilot {
     /**
      * @dev Rebalance LP position (placeholder - to be implemented later)
      * @param lp LP address to rebalance
+     * @param targetScore Target composite score to achieve after rebalancing
      */
 
-    function rebalance(address lp) internal {
+    function rebalance(address lp, uint256 targetScore) internal {
         // Placeholder implementation - this will perform actual rebalancing
         // Will be implemented in later iterations
+        // The rebalancing logic will adjust positions to achieve targetScore
     }
 
     /**
@@ -439,15 +475,6 @@ contract JITpilot {
      */
     function removeAuthorizedCaller(address caller) external onlyAuthorized {
         authorizedCallers[caller] = false;
-    }
-
-    /**
-     * @dev Update rebalance threshold
-     * @param newThreshold New threshold value
-     */
-    function updateRebalanceThreshold(uint256 newThreshold) external onlyAuthorized {
-        require(newThreshold <= PRECISION, "Threshold too high");
-        rebalanceThreshold = newThreshold;
     }
 
     /**
@@ -469,6 +496,8 @@ contract JITpilot {
      * @return hfMin Liquidation threshold
      * @return hfDesired Target health factor
      * @return yieldTarget Target yield
+     * @return rebalanceThreshold Threshold below which rebalancing is triggered
+     * @return rebalanceDesired Target score to achieve after rebalancing
      * @return lastUpdateBlock Last block when metrics were updated
      * @return initialized Whether LP data is initialized
      */
@@ -481,6 +510,8 @@ contract JITpilot {
             uint256 hfMin,
             uint256 hfDesired,
             uint256 yieldTarget,
+            uint256 rebalanceThreshold,
+            uint256 rebalanceDesired,
             uint256 lastUpdateBlock,
             bool initialized
         )
@@ -510,6 +541,45 @@ contract JITpilot {
         uint256 normalizedYield = _normalizeYield(data.twaYield, data.yieldTarget);
 
         return (weightHF * normalizedHF + weightYield * normalizedYield) / PRECISION;
+    }
+
+    /**
+     * @dev Get rebalance threshold for an LP
+     * @param lp LP address
+     * @return threshold Rebalance threshold stored during configuration
+     */
+    function getRebalanceThreshold(address lp) external view returns (uint256) {
+        return lpData[lp].rebalanceThreshold;
+    }
+    
+    /**
+     * @dev Get rebalance desired target for an LP
+     * @param lp LP address
+     * @return desired Rebalance target stored during configuration
+     */
+    function getRebalanceDesired(address lp) external view returns (uint256) {
+        return lpData[lp].rebalanceDesired;
+    }
+    
+    /**
+     * @dev Get all key metrics for an LP in one call
+     * @param lp LP address
+     * @return compositeScore Current composite score
+     * @return threshold Rebalance threshold
+     * @return desired Rebalance target
+     * @return needsRebalance Whether LP currently needs rebalancing
+     */
+    function getLPMetrics(address lp) external view returns (
+        uint256 compositeScore,
+        uint256 threshold,
+        uint256 desired,
+        bool needsRebalance
+    ) {
+        LPData storage data = lpData[lp];
+        compositeScore = this.getCompositeScore(lp);
+        threshold = data.rebalanceThreshold;
+        desired = data.rebalanceDesired;
+        needsRebalance = compositeScore < threshold;
     }
 
     // HELPER FUNCTIONS

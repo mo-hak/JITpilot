@@ -11,6 +11,8 @@ out/
 docs/
 /CursorPrompt.md
 /RebalancingSystemDesign.md
+/eulerswap_curve_mechanics.md
+/rebalance.md
 
 # Dotenv file
 .env

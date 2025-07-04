@@ -7,6 +7,7 @@ import {IEVault, IERC20} from "evk/EVault/IEVault.sol";
 import {IEulerSwapFactory} from "euler-swap/interfaces/IEulerSwapFactory.sol";
 import {IMaglevLens} from "src/interfaces/IMaglevLens.sol";
 import {IPriceOracle} from "evk/interfaces/IPriceOracle.sol";
+import {console2 as console} from "forge-std/console2.sol";
 
 /**
  * @title JITpilot
@@ -310,9 +311,12 @@ contract JITpilot {
         collateralVaults[0] = eulerSwapData.params.vault0;
         collateralVaults[1] = eulerSwapData.params.vault1;
         IMaglevLens.VaultGlobal[] memory collateralVaultsGlobal = maglevLens.vaultsGlobal(collateralVaults);
+        // packed2: shares (160), supply APY (48), borrow APY (48)
         for (uint256 i; i < collateralVaultsGlobal.length; ++i) {
             uint256 supplyApy = uint256((collateralVaultsGlobal[i].packed2 << (256 - 96)) >> (256 - 48));
             supplyApyTotal += supplyApy * getCollateralValue(lp, collateralVaults[i]) / collateralValueTotal;
+            console.log("Supply APY for vault", collateralVaults[i], "is", supplyApy);
+            console.log("Supply APY total is", supplyApyTotal);
         }
 
         // get the currently enabled controller vault (i.e. the debt vault)
@@ -320,19 +324,23 @@ contract JITpilot {
 
         // If there is no controller, there is no debt, and no liquidation metrics to calculate
         if (controllerVault == address(0)) {
+            console.log("doesn't have controller vault: ", controllerVault);
             blockData.allowedLTV = 0;
             blockData.currentLTV = 0;
             // If there is no debt, there is no looping or leverage
             blockData.depositValue = collateralValueTotal;
             blockData.netInterest = int256(supplyApyTotal);
         } else {
+            console.log("has controller vault: ", controllerVault);
             // Figure out which vault is the collateralVault
             address collateralVault = (controllerVault == eulerSwapData.params.vault0)
                 ? eulerSwapData.params.vault1
                 : eulerSwapData.params.vault0;
             uint256 debtValue = getDebtValue(lp, controllerVault);
-            blockData.allowedLTV = IEVault(controllerVault).LTVLiquidation(collateralVault);
-            blockData.currentLTV = debtValue / collateralValueTotal;
+            console.log("debtValue: ", debtValue);
+            blockData.allowedLTV = uint256(IEVault(controllerVault).LTVLiquidation(collateralVault)) * 1e18 / 1e4;
+            blockData.currentLTV = debtValue * 1e18 / collateralValueTotal;
+            console.log("currentLTV: ", blockData.currentLTV);
 
             address[] memory controllerVaultArray = new address[](1);
             controllerVaultArray[0] = controllerVault;
@@ -345,11 +353,12 @@ contract JITpilot {
             blockData.depositValue = collateralValueTotal - debtValue;
             if (supplyApyTotal * collateralValueTotal < borrowApyTotal * debtValue) {
                 // avoid overflow
-                blockData.netInterest = -int256((borrowApyTotal * debtValue - supplyApyTotal * collateralValueTotal) / blockData.depositValue);
+                blockData.netInterest = -int256((borrowApyTotal * debtValue - supplyApyTotal * collateralValueTotal) / blockData.depositValue)
+                    * 1e9;
             } else {
                 blockData.netInterest = int256(
                     (supplyApyTotal * collateralValueTotal - borrowApyTotal * debtValue) / blockData.depositValue
-                );
+                ) * 1e9;
             }
         }
 
@@ -564,5 +573,9 @@ contract JITpilot {
         currentDebtValue = IPriceOracle(controllerVault.oracle()).getQuote(debt, vault, controllerVault.unitOfAccount());
 
         return currentDebtValue;
+    }
+
+    function getData(address lp) external view returns (BlockData memory) {
+        return fetchData(lp);
     }
 }

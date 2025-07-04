@@ -39,7 +39,7 @@ contract JITpilot {
         uint256 currentLTV;
         uint256 swapFees;
         int256 netInterest;
-        uint256 depositValue;
+        int256 depositValue;
     }
 
     // LP data structure
@@ -156,7 +156,7 @@ contract JITpilot {
 
         // Calculate current Yield
         uint256 currentYield = 0;
-        uint256 swapApy = currentData.swapFees / currentData.depositValue;
+        uint256 swapApy = uint256(int256(currentData.swapFees) * 1e18 / currentData.depositValue);
         if (currentData.depositValue > 0) {
             if (currentData.netInterest >= 0) {
                 currentYield = (uint256(currentData.netInterest) * PRECISION) + swapApy;
@@ -287,37 +287,13 @@ contract JITpilot {
 
         BlockData memory blockData;
 
-        blockData.allowedLTV = 0;
-        blockData.currentLTV = 0;
-        blockData.swapFees = 0;
-        blockData.netInterest = 0;
-        blockData.depositValue = 0;
-
         // uint256 swapFees = 0;
         uint256 supplyApyTotal = 0;
         uint256 borrowApyTotal = 0;
 
-        // We only consider the EulerSwap vaults as collateral for this account, even if
-        // they have other enabled collaterals. This may differ from Euler's own UI, but it's
-        // more accurate for our purposes.
-        // uint256 collateralValue0 = getCollateralValue(lp, vault0);
-        // uint256 collateralValue1 = getCollateralValue(lp, vault1);
-        uint256 collateralValueTotal =
-            getCollateralValue(lp, eulerSwapData.params.vault0) + getCollateralValue(lp, eulerSwapData.params.vault1);
-
-        // get supply APY data using the MaglevLens contract
-        IMaglevLens maglevLens = IMaglevLens(MaglevLens);
-        address[] memory collateralVaults = new address[](2);
-        collateralVaults[0] = eulerSwapData.params.vault0;
-        collateralVaults[1] = eulerSwapData.params.vault1;
-        IMaglevLens.VaultGlobal[] memory collateralVaultsGlobal = maglevLens.vaultsGlobal(collateralVaults);
-        // packed2: shares (160), supply APY (48), borrow APY (48)
-        for (uint256 i; i < collateralVaultsGlobal.length; ++i) {
-            uint256 supplyApy = uint256((collateralVaultsGlobal[i].packed2 << (256 - 96)) >> (256 - 48));
-            supplyApyTotal += supplyApy * getCollateralValue(lp, collateralVaults[i]) / collateralValueTotal;
-            console.log("Supply APY for vault", collateralVaults[i], "is", supplyApy);
-            console.log("Supply APY total is", supplyApyTotal);
-        }
+        (uint256 collateralValueTotal, uint256 debtValue) = getDepositValue(lp);
+        blockData.depositValue = int256(collateralValueTotal) - int256(debtValue);
+        supplyApyTotal = getSupplyApy(lp);
 
         // get the currently enabled controller vault (i.e. the debt vault)
         address controllerVault = getCurrentControllerVault(lp);
@@ -327,8 +303,7 @@ contract JITpilot {
             console.log("doesn't have controller vault: ", controllerVault);
             blockData.allowedLTV = 0;
             blockData.currentLTV = 0;
-            // If there is no debt, there is no looping or leverage
-            blockData.depositValue = collateralValueTotal;
+            // If there is no debt, there is no looping or leverage, so interest is just supplyAPY
             blockData.netInterest = int256(supplyApyTotal);
         } else {
             console.log("has controller vault: ", controllerVault);
@@ -336,7 +311,6 @@ contract JITpilot {
             address collateralVault = (controllerVault == eulerSwapData.params.vault0)
                 ? eulerSwapData.params.vault1
                 : eulerSwapData.params.vault0;
-            uint256 debtValue = getDebtValue(lp, controllerVault);
             console.log("debtValue: ", debtValue);
             blockData.allowedLTV = uint256(IEVault(controllerVault).LTVLiquidation(collateralVault)) * 1e18 / 1e4;
             blockData.currentLTV = debtValue * 1e18 / collateralValueTotal;
@@ -344,23 +318,26 @@ contract JITpilot {
 
             address[] memory controllerVaultArray = new address[](1);
             controllerVaultArray[0] = controllerVault;
-            IMaglevLens.VaultGlobal[] memory controllerVaultsGlobal = maglevLens.vaultsGlobal(controllerVaultArray);
+            IMaglevLens.VaultGlobal[] memory controllerVaultsGlobal =
+                IMaglevLens(MaglevLens).vaultsGlobal(controllerVaultArray);
             // borrow APY is on the last 48 bits. Shift left then right to extract it.
             uint256 borrowApy = uint256((controllerVaultsGlobal[0].packed2 << (256 - 48)) >> (256 - 48));
             borrowApyTotal = borrowApy;
-
-            // The EVC already ensures that liabilityValue is less than collateralValueTotal, so this is safe
-            blockData.depositValue = collateralValueTotal - debtValue;
             if (supplyApyTotal * collateralValueTotal < borrowApyTotal * debtValue) {
                 // avoid overflow
-                blockData.netInterest = -int256((borrowApyTotal * debtValue - supplyApyTotal * collateralValueTotal) / blockData.depositValue)
-                    * 1e9;
+                blockData.netInterest = -int256(
+                    (borrowApyTotal * debtValue - supplyApyTotal * collateralValueTotal)
+                        / uint256(blockData.depositValue)
+                ) * 1e9;
             } else {
                 blockData.netInterest = int256(
-                    (supplyApyTotal * collateralValueTotal - borrowApyTotal * debtValue) / blockData.depositValue
+                    (supplyApyTotal * collateralValueTotal - borrowApyTotal * debtValue)
+                        / uint256(blockData.depositValue)
                 ) * 1e9;
             }
         }
+
+        blockData.depositValue = int256(collateralValueTotal) - int256(debtValue);
 
         // get LP's liquidity status in the controller vault, with regards to liquidation
         // (
@@ -416,6 +393,8 @@ contract JITpilot {
         uint256 outLimit01;
         uint256 inLimit10;
         uint256 outLimit10;
+        uint16 borrowLTV01;
+        uint16 borrowLTV10;
     }
 
     function getEulerSwapData(address poolAddr) internal view returns (EulerSwapData memory output) {
@@ -432,6 +411,9 @@ contract JITpilot {
         output.asset1 = asset1;
         (output.inLimit01, output.outLimit01) = pool.getLimits(asset0, asset1);
         (output.inLimit10, output.outLimit10) = pool.getLimits(asset1, asset0);
+        // fetch borrow LTVs. These will be used to calculate reserves for rebalancing
+        output.borrowLTV01 = IEVault(output.params.vault0).LTVBorrow(output.params.vault1);
+        output.borrowLTV10 = IEVault(output.params.vault1).LTVBorrow(output.params.vault0);
     }
     /**
      * @dev Rebalance LP position (placeholder - to be implemented later)
@@ -577,5 +559,58 @@ contract JITpilot {
 
     function getData(address lp) external view returns (BlockData memory) {
         return fetchData(lp);
+    }
+
+    /**
+     * @dev Get the deposit value of an LP
+     * @param lp LP address
+     * @return collateralValueTotal Collateral value of the LP
+     * @return debtValue Debt value of the LP
+     */
+    function getDepositValue(address lp)
+        internal
+        view
+        virtual
+        returns (uint256 collateralValueTotal, uint256 debtValue)
+    {
+        address poolAddr = IEulerSwapFactory(EulerSwapFactory).poolByEulerAccount(lp);
+        IEulerSwap.Params memory eulerSwapParams = IEulerSwap(poolAddr).getParams();
+
+        collateralValueTotal =
+            getCollateralValue(lp, eulerSwapParams.vault0) + getCollateralValue(lp, eulerSwapParams.vault1);
+        debtValue = getDebtValue(lp, eulerSwapParams.vault0) + getDebtValue(lp, eulerSwapParams.vault1);
+
+        return (collateralValueTotal, debtValue);
+    }
+
+    /**
+     * @dev Get the supply APY of an LP
+     * @param lp LP address
+     * @return supplyApyTotal Supply APY of the LP, weighted by collateral value
+     */
+    function getSupplyApy(address lp) internal view virtual returns (uint256 supplyApyTotal) {
+        address poolAddr = IEulerSwapFactory(EulerSwapFactory).poolByEulerAccount(lp);
+        IEulerSwap.Params memory eulerSwapParams = IEulerSwap(poolAddr).getParams();
+
+        // get supply APY data using the MaglevLens contract
+        IMaglevLens maglevLens = IMaglevLens(MaglevLens);
+        address[] memory collateralVaults = new address[](2);
+        collateralVaults[0] = eulerSwapParams.vault0;
+        collateralVaults[1] = eulerSwapParams.vault1;
+        IMaglevLens.VaultGlobal[] memory collateralVaultsGlobal = maglevLens.vaultsGlobal(collateralVaults);
+        // packed2: shares (160), supply APY (48), borrow APY (48)
+        uint256 collateralValueTotal;
+        for (uint256 i; i < collateralVaultsGlobal.length; ++i) {
+            uint256 supplyApy = uint256((collateralVaultsGlobal[i].packed2 << (256 - 96)) >> (256 - 48));
+            uint256 collateralValue = getCollateralValue(lp, collateralVaults[i]);
+            supplyApyTotal += supplyApy * collateralValue;
+            collateralValueTotal += collateralValue;
+            console.log("Supply APY for vault", collateralVaults[i], "is", supplyApy);
+            console.log("Supply APY total is", supplyApyTotal);
+        }
+
+        supplyApyTotal = supplyApyTotal / collateralValueTotal;
+
+        return supplyApyTotal;
     }
 }

@@ -10,3 +10,18 @@
 [submodule "libflat/ethereum-vault-connector"]
 	path = libflat/ethereum-vault-connector
 	url = https://github.com/euler-xyz/ethereum-vault-connector
+[submodule "libflat/permit2"]
+	path = libflat/permit2
+	url = https://github.com/Uniswap/permit2
+[submodule "libflat/openzeppelin-contracts"]
+	path = libflat/openzeppelin-contracts
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts
+[submodule "libflat/v4-core"]
+	path = libflat/v4-core
+	url = https://github.com/uniswap/v4-core
+[submodule "libflat/v4-periphery"]
+	path = libflat/v4-periphery
+	url = https://github.com/uniswap/v4-periphery
+[submodule "libflat/solmate"]
+	path = libflat/solmate
+	url = https://github.com/rari-capital/solmate

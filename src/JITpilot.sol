@@ -8,6 +8,9 @@ import {IEulerSwapFactory} from "euler-swap/interfaces/IEulerSwapFactory.sol";
 import {IMaglevLens} from "src/interfaces/IMaglevLens.sol";
 import {IPriceOracle} from "evk/interfaces/IPriceOracle.sol";
 import {console2 as console} from "forge-std/console2.sol";
+import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
+
+import {CurveLib} from "euler-swap/libraries/CurveLib.sol";
 
 /**
  * @title JITpilot
@@ -39,6 +42,7 @@ contract JITpilot {
         uint256 swapFees;
         int256 netInterest;
         int256 depositValue;
+        address controllerVault;
     }
 
     // LP data structure
@@ -59,6 +63,8 @@ contract JITpilot {
         // Tracking
         uint256 lastUpdateBlock; // Last block when metrics were updated
         uint256 startBlock; // Block when LP started
+        EulerSwapData eulerSwapData; // Latest EulerSwap parameters
+        BlockData blockData; // Latest EulerSwap state data
         bool initialized; // Whether LP data is initialized
     }
 
@@ -73,13 +79,12 @@ contract JITpilot {
         uint256 healthFactor,
         uint256 yield,
         uint256 twaHF,
-        uint256 twaYield,
-        uint256 compositeScore
+        uint256 twaYield
     );
 
-    event RebalanceTriggered(address indexed lp, uint256 indexed blockNumber, uint256 compositeScore, uint256 threshold, uint256 targetScore);
+    event RebalanceTriggered(address indexed lp, uint256 indexed blockNumber, uint256 hf, uint256 threshold);
 
-    event LPConfigured(address indexed lp, uint256 hfMin, uint256 hfDesired, uint256 yieldTarget);
+    event LPConfigured(address indexed lp, uint256 hfMin, uint256 hfDesired);
 
     // Modifiers
     modifier onlyAuthorized() {
@@ -120,24 +125,19 @@ contract JITpilot {
      * @param lp LP address
      * @param _hfMin Liquidation threshold
      * @param _hfDesired Target health factor
-     * @param _yieldTarget Target yield
      */
-    function configureLp(address lp, uint256 _hfMin, uint256 _hfDesired, uint256 _yieldTarget) external {
+    function configureLp(address lp, uint256 _hfMin, uint256 _hfDesired) external {
         require(lp != address(0), "Invalid LP address");
         require(_hfDesired > _hfMin, "HF desired must be > HF min");
 
         LPData storage data = lpData[lp];
         data.hfMin = _hfMin;
         data.hfDesired = _hfDesired;
-        data.yieldTarget = _yieldTarget;
+        // data.yieldTarget = _yieldTarget;
         data.initialized = true;
         data.startBlock = block.number;
 
-        // Calculate and store thresholds once during configuration
-        data.rebalanceThreshold = calculateRebalanceThreshold(lp);
-        data.rebalanceDesired = calculateRebalanceDesired(lp);
-
-        emit LPConfigured(lp, _hfMin, _hfDesired, _yieldTarget);
+        emit LPConfigured(lp, _hfMin, _hfDesired);
     }
 
     /**
@@ -159,25 +159,25 @@ contract JITpilot {
         }
 
         // Calculate current Yield
-        uint256 currentYield = 0;
-        uint256 swapApy = uint256(int256(currentData.swapFees) * 1e18 / currentData.depositValue);
-        if (currentData.depositValue > 0) {
-            if (currentData.netInterest >= 0) {
-                currentYield = (uint256(currentData.netInterest) * PRECISION) + swapApy;
-            } else if (swapApy >= uint256(currentData.netInterest)) {
-                // netInterest is negative, but swapApy is greater, so yield is positive.
-                currentYield = swapApy - uint256(currentData.netInterest);
-            } else {
-                // Yield is negative. Set to 0 for simplicity.
-                currentYield = 0;
-            }
-        }
+        // uint256 currentYield = 0;
+        // uint256 swapApy = uint256(int256(currentData.swapFees) * 1e18 / currentData.depositValue);
+        // if (currentData.depositValue > 0) {
+        //     if (currentData.netInterest >= 0) {
+        //         currentYield = (uint256(currentData.netInterest) * PRECISION) + swapApy;
+        //     } else if (swapApy >= uint256(currentData.netInterest)) {
+        //         // netInterest is negative, but swapApy is greater, so yield is positive.
+        //         currentYield = swapApy - uint256(currentData.netInterest);
+        //     } else {
+        //         // Yield is negative. Set to 0 for simplicity.
+        //         currentYield = 0;
+        //     }
+        // }
 
         // Update sliding window for Health Factor
         _updateSlidingWindow(data.hfHistory, currentHF);
 
         // Update sliding window for Yield
-        _updateSlidingWindow(data.yieldHistory, currentYield);
+        // _updateSlidingWindow(data.yieldHistory, currentYield);
 
         // Calculate TWA for Health Factor
         data.twaHF = _calculateTWA(data.hfHistory, data.startBlock);
@@ -187,20 +187,21 @@ contract JITpilot {
 
         // Calculate normalized values
         uint256 normalizedHF = _normalizeHealthFactor(data.twaHF, data.hfMin, data.hfDesired);
-        uint256 normalizedYield = _normalizeYield(data.twaYield, data.yieldTarget);
+        // uint256 normalizedYield = _normalizeYield(data.twaYield, data.yieldTarget);
 
         // Calculate composite score
-        uint256 compositeScore = (weightHF * normalizedHF + weightYield * normalizedYield) / PRECISION;
+        // uint256 compositeScore = (weightHF * normalizedHF + weightYield * normalizedYield) / PRECISION;
 
         // Update last update block
         data.lastUpdateBlock = block.number;
 
         // Emit metrics updated event
-        emit MetricsUpdated(lp, block.number, currentHF, currentYield, data.twaHF, data.twaYield, compositeScore);
+        // emit MetricsUpdated(lp, block.number, currentHF, currentYield, data.twaHF, data.twaYield);
+        emit MetricsUpdated(lp, block.number, currentHF, 0, data.twaHF, 0);
 
-        // Check if rebalancing is needed using stored threshold values
-        if (compositeScore < data.rebalanceThreshold) {
-            emit RebalanceTriggered(lp, block.number, compositeScore, data.rebalanceThreshold, data.rebalanceDesired);
+        // Check if rebalancing is needed
+        if (normalizedHF < data.rebalanceThreshold) {
+            emit RebalanceTriggered(lp, block.number, normalizedHF, data.rebalanceThreshold);
             rebalance(lp, data.rebalanceDesired);
         }
     }
@@ -339,6 +340,7 @@ contract JITpilot {
             blockData.currentLTV = 0;
             // If there is no debt, there is no looping or leverage, so interest is just supplyAPY
             blockData.netInterest = int256(supplyApyTotal);
+            blockData.controllerVault = address(0);
         } else {
             console.log("has controller vault: ", controllerVault);
             // Figure out which vault is the collateralVault
@@ -369,6 +371,7 @@ contract JITpilot {
                         / uint256(blockData.depositValue)
                 ) * 1e9;
             }
+            blockData.controllerVault = controllerVault;
         }
 
         blockData.depositValue = int256(collateralValueTotal) - int256(debtValue);
@@ -423,10 +426,10 @@ contract JITpilot {
         address asset1;
         uint256 reserve0;
         uint256 reserve1;
-        uint256 inLimit01;
-        uint256 outLimit01;
-        uint256 inLimit10;
-        uint256 outLimit10;
+        // uint256 inLimit01;
+        // uint256 outLimit01;
+        // uint256 inLimit10;
+        // uint256 outLimit10;
         uint16 borrowLTV01;
         uint16 borrowLTV10;
     }
@@ -443,8 +446,8 @@ contract JITpilot {
         (address asset0, address asset1) = pool.getAssets();
         output.asset0 = asset0;
         output.asset1 = asset1;
-        (output.inLimit01, output.outLimit01) = pool.getLimits(asset0, asset1);
-        (output.inLimit10, output.outLimit10) = pool.getLimits(asset1, asset0);
+        // (output.inLimit01, output.outLimit01) = pool.getLimits(asset0, asset1);
+        // (output.inLimit10, output.outLimit10) = pool.getLimits(asset1, asset0);
         // fetch borrow LTVs. These will be used to calculate reserves for rebalancing
         output.borrowLTV01 = IEVault(output.params.vault0).LTVBorrow(output.params.vault1);
         output.borrowLTV10 = IEVault(output.params.vault1).LTVBorrow(output.params.vault0);
@@ -458,7 +461,35 @@ contract JITpilot {
     function rebalance(address lp, uint256 targetScore) internal {
         // Placeholder implementation - this will perform actual rebalancing
         // Will be implemented in later iterations
-        // The rebalancing logic will adjust positions to achieve targetScore
+        // This function is only called after confirming that a rebalance is needed
+
+        // #1 Fetch current EulerSwap data
+        EulerSwapData memory eulerSwapData = getEulerSwapData(lp);
+
+        // #2 Calculate new EulerSwap params
+        bool asset0IsDebt = lpData[lp].blockData.controllerVault == eulerSwapData.params.vault0;
+        IEulerSwap.Params memory newParams = calculateRebalancingParams(lp, eulerSwapData, asset0IsDebt);
+
+        // #5 Uninstall current EulerSwap through EVC batch
+        // IEVC(EVC).BatchItem(
+        //     IEulerSwapFactory(EulerSwapFactory).uninstallPool();
+
+        // );
+
+        // Deploy pool via EVC batch
+        // IEVC.BatchItem[] memory items = new IEVC.BatchItem[](2);
+        // items[0] = IEVC.BatchItem({
+        //     onBehalfOfAccount: address(0),
+        //     targetContract: address(evc),
+        //     value: 0,
+        //     data: abi.encodeCall(evc.setAccountOperator, (user0, hookAddress, true))
+        // });
+        // items[1] = IEVC.BatchItem({
+        //     onBehalfOfAccount: user0,
+        //     targetContract: address(eulerSwapFactory),
+        //     value: 0,
+        //     data: abi.encodeCall(IEulerSwapFactory.deployPool, (poolParams, initialState, salt))
+        // });
     }
 
     /**
@@ -523,6 +554,8 @@ contract JITpilot {
             data.hfMin,
             data.hfDesired,
             data.yieldTarget,
+            data.rebalanceThreshold,
+            data.rebalanceDesired,
             data.lastUpdateBlock,
             data.initialized
         );
@@ -600,35 +633,49 @@ contract JITpilot {
         return currentControllerVault;
     }
 
-    function getCollateralValue(address account, address collateral) internal view virtual returns (uint256 value) {
-        IEVault collateralVault = IEVault(collateral);
-        uint256 balance = IERC20(collateral).balanceOf(account);
+    // function getCollateralValue(address account, address vaultAddress) internal view virtual returns (uint256 value) {
+    //     IEVault collateralVault = IEVault(vaultAddress);
+    //     uint256 balance = IERC20(vaultAddress).balanceOf(account);
+    //     if (balance == 0) return 0;
+
+    //     uint256 currentCollateralValue;
+
+    //     // mid-point price
+    //     currentCollateralValue =
+    //         IPriceOracle(collateralVault.oracle()).getQuote(balance, vaultAddress, collateralVault.unitOfAccount());
+
+    //     return currentCollateralValue;
+    // }
+
+    // function getDebtValue(address account, address vault) internal view virtual returns (uint256 value) {
+    //     IEVault controllerVault = IEVault(vault);
+    //     uint256 debt = controllerVault.debtOf(account);
+    //     if (debt == 0) return 0;
+
+    //     uint256 currentDebtValue;
+
+    //     // mid-point price
+    //     currentDebtValue = IPriceOracle(controllerVault.oracle()).getQuote(debt, vault, controllerVault.unitOfAccount());
+
+    //     return currentDebtValue;
+    // }
+
+    function getPositionValue(address account, address vaultAddress, bool isControllerVault)
+        internal
+        view
+        virtual
+        returns (uint256 value)
+    {
+        IEVault vault = IEVault(vaultAddress);
+        uint256 balance = isControllerVault ? vault.debtOf(account) : IERC20(vaultAddress).balanceOf(account);
         if (balance == 0) return 0;
 
-        uint256 currentCollateralValue;
+        uint256 currentPositionValue;
 
         // mid-point price
-        currentCollateralValue =
-            IPriceOracle(collateralVault.oracle()).getQuote(balance, collateral, collateralVault.unitOfAccount());
+        currentPositionValue = IPriceOracle(vault.oracle()).getQuote(balance, vaultAddress, vault.unitOfAccount());
 
-        return currentCollateralValue;
-    }
-
-    function getDebtValue(address account, address vault) internal view virtual returns (uint256 value) {
-        IEVault controllerVault = IEVault(vault);
-        uint256 debt = controllerVault.debtOf(account);
-        if (debt == 0) return 0;
-
-        uint256 currentDebtValue;
-
-        // mid-point price
-        currentDebtValue = IPriceOracle(controllerVault.oracle()).getQuote(debt, vault, controllerVault.unitOfAccount());
-
-        return currentDebtValue;
-    }
-
-    function getData(address lp) external view returns (BlockData memory) {
-        return fetchData(lp);
+        return currentPositionValue;
     }
 
     /**
@@ -647,8 +694,9 @@ contract JITpilot {
         IEulerSwap.Params memory eulerSwapParams = IEulerSwap(poolAddr).getParams();
 
         collateralValueTotal =
-            getCollateralValue(lp, eulerSwapParams.vault0) + getCollateralValue(lp, eulerSwapParams.vault1);
-        debtValue = getDebtValue(lp, eulerSwapParams.vault0) + getDebtValue(lp, eulerSwapParams.vault1);
+            getPositionValue(lp, eulerSwapParams.vault0, false) + getPositionValue(lp, eulerSwapParams.vault1, false);
+        debtValue =
+            getPositionValue(lp, eulerSwapParams.vault0, true) + getPositionValue(lp, eulerSwapParams.vault1, true);
 
         return (collateralValueTotal, debtValue);
     }
@@ -672,7 +720,7 @@ contract JITpilot {
         uint256 collateralValueTotal;
         for (uint256 i; i < collateralVaultsGlobal.length; ++i) {
             uint256 supplyApy = uint256((collateralVaultsGlobal[i].packed2 << (256 - 96)) >> (256 - 48));
-            uint256 collateralValue = getCollateralValue(lp, collateralVaults[i]);
+            uint256 collateralValue = getPositionValue(lp, collateralVaults[i], false);
             supplyApyTotal += supplyApy * collateralValue;
             collateralValueTotal += collateralValue;
             console.log("Supply APY for vault", collateralVaults[i], "is", supplyApy);
@@ -682,5 +730,93 @@ contract JITpilot {
         supplyApyTotal = supplyApyTotal / collateralValueTotal;
 
         return supplyApyTotal;
+    }
+
+    function calculateRebalancingParams(address lp, EulerSwapData memory eulerSwapData, bool asset0IsDebt)
+        internal
+        view
+        returns (IEulerSwap.Params memory)
+    {
+        // Calculate delta reserves. This is the amount of trading we want to service, to repay the debt.
+        uint256 deltaReservesValueUsd = calculateDeltaReserves(lp, eulerSwapData);
+        uint256 asset0Scale = FixedPointMathLib.rpow(10e18, IERC20(IEVault(eulerSwapData.params.vault0).asset()).decimals(), 1e18) / 1e18;
+        uint256 asset1Scale = FixedPointMathLib.rpow(10e18, IERC20(IEVault(eulerSwapData.params.vault1).asset()).decimals(), 1e18) / 1e18;
+        uint256 asset0PriceUsd = IPriceOracle(IEVault(eulerSwapData.params.vault0).oracle()).getQuote(
+            asset0Scale, IEVault(eulerSwapData.params.vault0).asset(), IEVault(eulerSwapData.params.vault0).unitOfAccount()
+        );
+        uint256 asset1PriceUsd = IPriceOracle(IEVault(eulerSwapData.params.vault1).oracle()).getQuote(
+            asset1Scale, IEVault(eulerSwapData.params.vault1).asset(), IEVault(eulerSwapData.params.vault1).unitOfAccount()
+        );
+
+        // Calculate balancedEquilibriumReserves given current depositValue
+        // Both equilibriumReserves are maxed at the point in the curve where vaults are balanced.
+        uint256 desiredEqRsvCollateralAsset;
+        uint256 desiredEqRsvDebtAsset;
+        (uint256 collateralValueTotal, uint256 debtValue) = getDepositValue(lp);
+        uint256 depositValue = collateralValueTotal - debtValue;
+        {
+            if (asset0IsDebt) {
+                uint256 balEqRsv1 = depositValue * 1e4 / (1e4 - eulerSwapData.borrowLTV01) * asset1Scale / asset1PriceUsd;
+                desiredEqRsvCollateralAsset = balEqRsv1
+                    + debtValue * asset1Scale / asset1PriceUsd
+                    - deltaReservesValueUsd * asset1Scale / asset1PriceUsd - depositValue * asset1Scale / 2 / asset1PriceUsd;
+                // we've chosen an arbitrary amount of 3x deltaReserves and a 99% concentration to prevent over-borrowing and allow for arbitrage
+                desiredEqRsvDebtAsset = deltaReservesValueUsd * 3 * asset0Scale / asset0PriceUsd;
+            } else {
+                uint256 balEqRsv0 = depositValue * 1e4 / (1e4 - eulerSwapData.borrowLTV01) * asset0Scale / asset0PriceUsd;
+                desiredEqRsvCollateralAsset = balEqRsv0
+                    + debtValue * asset0Scale / asset0PriceUsd
+                    - deltaReservesValueUsd * asset0Scale / asset0PriceUsd - depositValue * asset0Scale / 2 / asset0PriceUsd;
+                // we've chosen an arbitrary amount of 3x deltaReserves and a 99% concentration to prevent over-borrowing and allow for arbitrage
+                desiredEqRsvDebtAsset = deltaReservesValueUsd * 3 * asset1Scale / asset1PriceUsd;
+            }
+        }
+        uint256 concentrationDebtAsset = 99 * 1e16;
+
+        return IEulerSwap.Params({
+            vault0: eulerSwapData.params.vault0,
+            vault1: eulerSwapData.params.vault1,
+            eulerAccount: eulerSwapData.params.eulerAccount,
+            equilibriumReserve0: uint112(asset0IsDebt ? desiredEqRsvDebtAsset : desiredEqRsvCollateralAsset),
+            equilibriumReserve1: uint112(asset0IsDebt ? desiredEqRsvCollateralAsset : desiredEqRsvDebtAsset),
+            priceX: 1 * asset1Scale,    
+            priceY: asset1PriceUsd * 1e18 / asset0PriceUsd * asset0Scale / asset1Scale * 99/100,
+            concentrationX: asset0IsDebt ? concentrationDebtAsset : eulerSwapData.params.concentrationX,
+            concentrationY: asset0IsDebt ? eulerSwapData.params.concentrationY : concentrationDebtAsset,
+            fee: eulerSwapData.params.fee,
+            protocolFee: eulerSwapData.params.protocolFee,
+            protocolFeeRecipient: eulerSwapData.params.protocolFeeRecipient
+        });
+    }
+
+    function calculateDeltaReserves(address lp, EulerSwapData memory eulerSwapData) internal view returns (uint256) {
+        // $\Delta L = \frac{\frac{HF'}{LLTV} \cdot L - C}{\frac{HF'}{LLTV} - 1}$
+        uint256 hfPrime = lpData[lp].hfDesired;
+        address controllerVault = getCurrentControllerVault(lp);
+        address collateralVault =
+            controllerVault == eulerSwapData.params.vault0 ? eulerSwapData.params.vault1 : eulerSwapData.params.vault0;
+        uint256 lltv = uint256(IEVault(controllerVault).LTVLiquidation(collateralVault)) * 1e18 / 1e4;
+
+        uint256 collateralValue = getPositionValue(lp, collateralVault, false);
+        uint256 liabilityValue = getPositionValue(lp, controllerVault, true);
+
+        return ((hfPrime * liabilityValue / lltv) - collateralValue) / (hfPrime * 1e18 / lltv - 1e18) * 1e18;
+    }
+
+    // EXTERNAL HELPER FUNCTIONS FOR TESTING
+
+    function getData(address lp) external view returns (BlockData memory) {
+        return fetchData(lp);
+    }
+
+    function getRebalancingParams(address lp) external view returns (IEulerSwap.Params memory) {
+        // #1 Fetch current EulerSwap data
+        address poolAddr = IEulerSwapFactory(EulerSwapFactory).poolByEulerAccount(lp);
+        EulerSwapData memory eulerSwapData = getEulerSwapData(poolAddr);
+
+        // #2 Calculate new EulerSwap params
+        bool asset0IsDebt = getCurrentControllerVault(lp) == eulerSwapData.params.vault0;
+
+        return calculateRebalancingParams(lp, eulerSwapData, asset0IsDebt);
     }
 }

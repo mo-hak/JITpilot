@@ -300,197 +300,197 @@ contract JITpilotTest is Test {
         assertEq(jitpilot.weightYield(), 4e17);
     }
 
-    // function test_SetAddresses() public {
-    //     address newEVC = address(0x1111);
-    //     address newEVK = address(0x2222);
-    //     address newLens = address(0x3333);
-    //     address newFactory = address(0x4444);
-    //     address newImpl = address(0x5555);
+    function test_SetAddresses() public {
+        address newEVC = address(0x1111);
+        address newEVK = address(0x2222);
+        address newLens = address(0x3333);
+        address newFactory = address(0x4444);
+        address newImpl = address(0x5555);
 
-    //     jitpilot.setEVC(newEVC);
-    //     jitpilot.setEVK(newEVK);
-    //     jitpilot.setMaglevLens(newLens);
-    //     jitpilot.setEulerSwapFactory(newFactory);
-    //     jitpilot.setEulerSwapImpl(newImpl);
+        jitpilot.setEVC(newEVC);
+        jitpilot.setEVK(newEVK);
+        jitpilot.setMaglevLens(newLens);
+        jitpilot.setEulerSwapFactory(newFactory);
+        jitpilot.setEulerSwapImpl(newImpl);
 
-    //     assertEq(jitpilot.evcAddress(), newEVC);
-    //     assertEq(jitpilot.evkAddress(), newEVK);
-    //     assertEq(jitpilot.maglevLensAddress(), newLens);
-    //     assertEq(jitpilot.eulerSwapFactoryAddress(), newFactory);
-    //     assertEq(jitpilot.eulerSwapImplAddress(), newImpl);
-    // }
+        assertEq(jitpilot.evcAddress(), newEVC);
+        assertEq(jitpilot.evkAddress(), newEVK);
+        assertEq(jitpilot.maglevLensAddress(), newLens);
+        assertEq(jitpilot.eulerSwapFactoryAddress(), newFactory);
+        assertEq(jitpilot.eulerSwapImplAddress(), newImpl);
+    }
 
-    // function test_SetAddressesOnlyOwner() public {
-    //     vm.prank(NON_AUTHORIZED);
-    //     vm.expectRevert("Not owner");
-    //     jitpilot.setEVC(address(0x1111));
+    function test_SetAddressesOnlyOwner() public {
+        vm.prank(NON_AUTHORIZED);
+        vm.expectRevert("Not owner");
+        jitpilot.setEVC(address(0x1111));
 
-    //     vm.prank(NON_AUTHORIZED);
-    //     vm.expectRevert("Not owner");
-    //     jitpilot.setEVK(address(0x2222));
+        vm.prank(NON_AUTHORIZED);
+        vm.expectRevert("Not owner");
+        jitpilot.setEVK(address(0x2222));
 
-    //     vm.prank(NON_AUTHORIZED);
-    //     vm.expectRevert("Not owner");
-    //     jitpilot.setMaglevLens(address(0x3333));
+        vm.prank(NON_AUTHORIZED);
+        vm.expectRevert("Not owner");
+        jitpilot.setMaglevLens(address(0x3333));
 
-    //     vm.prank(NON_AUTHORIZED);
-    //     vm.expectRevert("Not owner");
-    //     jitpilot.setEulerSwapFactory(address(0x4444));
+        vm.prank(NON_AUTHORIZED);
+        vm.expectRevert("Not owner");
+        jitpilot.setEulerSwapFactory(address(0x4444));
 
-    //     vm.prank(NON_AUTHORIZED);
-    //     vm.expectRevert("Not owner");
-    //     jitpilot.setEulerSwapImpl(address(0x5555));
-    // }
+        vm.prank(NON_AUTHORIZED);
+        vm.expectRevert("Not owner");
+        jitpilot.setEulerSwapImpl(address(0x5555));
+    }
 
-    // function test_ConfigureLp() public {
-    //     vm.expectEmit(true, false, false, true);
-    //     emit LPConfigured(LP_ADDRESS, HF_MIN, HF_DESIRED);
+    function test_ConfigureLp() public {
+        vm.expectEmit(true, false, false, true);
+        emit LPConfigured(LP_ADDRESS, HF_MIN, HF_DESIRED);
 
-    //     jitpilot.configureLp(LP_ADDRESS, HF_MIN, HF_DESIRED);
+        jitpilot.configureLp(LP_ADDRESS, HF_MIN, HF_DESIRED);
 
-    //     (
-    //         uint256 twaHF,
-    //         uint256 twaYield,
-    //         uint256 hfMin,
-    //         uint256 hfDesired,
-    //         uint256 yieldTarget,
-    //         uint256 rebalanceThreshold,
-    //         uint256 rebalanceDesired,
-    //         uint256 lastUpdateBlock,
-    //         ,
-    //         ,
-    //         bool initialized,
-    //     ) = jitpilot.getLPData(LP_ADDRESS);
+        (
+            uint256 twaHF,
+            uint256 twaYield,
+            uint256 hfMin,
+            uint256 hfDesired,
+            uint256 yieldTarget,
+            uint256 rebalanceThreshold,
+            uint256 rebalanceDesired,
+            uint256 lastUpdateBlock,
+            ,
+            ,
+            bool initialized,
+        ) = jitpilot.getLPData(LP_ADDRESS);
 
-    //     assertTrue(initialized);
-    //     assertEq(hfMin, HF_MIN);
-    //     assertEq(hfDesired, HF_DESIRED);
-    //     assertEq(rebalanceThreshold, HF_DESIRED);
-    //     assertEq(rebalanceDesired, HF_DESIRED);
-    // }
+        assertTrue(initialized);
+        assertEq(hfMin, HF_MIN);
+        assertEq(hfDesired, HF_DESIRED);
+        assertEq(rebalanceThreshold, HF_DESIRED);
+        assertEq(rebalanceDesired, HF_DESIRED);
+    }
 
-    // function test_ConfigureLpInvalidAddress() public {
-    //     vm.expectRevert("Invalid LP address");
-    //     jitpilot.configureLp(address(0), HF_MIN, HF_DESIRED);
-    // }
+    function test_ConfigureLpInvalidAddress() public {
+        vm.expectRevert("Invalid LP address");
+        jitpilot.configureLp(address(0), HF_MIN, HF_DESIRED);
+    }
 
-    // function test_ConfigureLpInvalidHFRange() public {
-    //     vm.expectRevert("HF desired must be > HF min");
-    //     jitpilot.configureLp(LP_ADDRESS, HF_DESIRED, HF_MIN);
-    // }
+    function test_ConfigureLpInvalidHFRange() public {
+        vm.expectRevert("HF desired must be > HF min");
+        jitpilot.configureLp(LP_ADDRESS, HF_DESIRED, HF_MIN);
+    }
 
-    // function test_UpdateMetricsNotConfigured() public {
-    //     vm.expectRevert("LP not configured");
-    //     jitpilot.updateMetrics(LP_ADDRESS);
-    // }
+    function test_UpdateMetricsNotConfigured() public {
+        vm.expectRevert("LP not configured");
+        jitpilot.updateMetrics(LP_ADDRESS);
+    }
 
-    // function test_UpdateMetrics() public {
-    //     // Configure LP first
-    //     jitpilot.configureLp(LP_ADDRESS, HF_MIN, HF_DESIRED);
+    function test_UpdateMetrics() public {
+        // Configure LP first
+        jitpilot.configureLp(LP_ADDRESS, HF_MIN, HF_DESIRED);
 
-    //     // Set up MaglevLens response for supply APY
-    //     IMaglevLens.VaultGlobal memory globalData = IMaglevLens.VaultGlobal({
-    //         packed1: 0,
-    //         packed2: (uint256(5e16) << 48) | (uint256(3e16) << 96) // supply APY 5%, borrow APY 3%
-    //     });
-    //     mockLens.setVaultGlobal(address(mockVault0), globalData);
-    //     mockLens.setVaultGlobal(address(mockVault1), globalData);
+        // Set up MaglevLens response for supply APY
+        IMaglevLens.VaultGlobal memory globalData = IMaglevLens.VaultGlobal({
+            packed1: 0,
+            packed2: (uint256(5e16) << 48) | (uint256(3e16) << 96) // supply APY 5%, borrow APY 3%
+        });
+        mockLens.setVaultGlobal(address(mockVault0), globalData);
+        mockLens.setVaultGlobal(address(mockVault1), globalData);
 
-    //     vm.expectEmit(true, true, false, false);
-    //     emit MetricsUpdated(LP_ADDRESS, block.number, 0, 0, 0, 0); // Actual values may vary due to calculation complexity
+        vm.expectEmit(true, true, false, false);
+        emit MetricsUpdated(LP_ADDRESS, block.number, 0, 0, 0, 0); // Actual values may vary due to calculation complexity
 
-    //     jitpilot.updateMetrics(LP_ADDRESS);
+        jitpilot.updateMetrics(LP_ADDRESS);
 
-    //     (uint256 twaHF, uint256 twaYield,,,,,, uint256 lastUpdateBlock,,,,) = jitpilot.getLPData(LP_ADDRESS);
+        (uint256 twaHF, uint256 twaYield,,,,,, uint256 lastUpdateBlock,,,,) = jitpilot.getLPData(LP_ADDRESS);
 
-    //     assertEq(lastUpdateBlock, block.number);
-    //     assertGt(twaHF, 0); // Should have some positive HF value
-    // }
+        assertEq(lastUpdateBlock, block.number);
+        assertGt(twaHF, 0); // Should have some positive HF value
+    }
 
-    // function test_AuthorizedCallers() public {
-    //     // Test adding authorized caller
-    //     vm.prank(AUTHORIZED_CALLER);
-    //     jitpilot.addAuthorizedCaller(NON_AUTHORIZED);
-    //     assertTrue(jitpilot.authorizedCallers(NON_AUTHORIZED));
+    function test_AuthorizedCallers() public {
+        // Test adding authorized caller
+        vm.prank(AUTHORIZED_CALLER);
+        jitpilot.addAuthorizedCaller(NON_AUTHORIZED);
+        assertTrue(jitpilot.authorizedCallers(NON_AUTHORIZED));
 
-    //     // Test removing authorized caller
-    //     vm.prank(AUTHORIZED_CALLER);
-    //     jitpilot.removeAuthorizedCaller(NON_AUTHORIZED);
-    //     assertFalse(jitpilot.authorizedCallers(NON_AUTHORIZED));
-    // }
+        // Test removing authorized caller
+        vm.prank(AUTHORIZED_CALLER);
+        jitpilot.removeAuthorizedCaller(NON_AUTHORIZED);
+        assertFalse(jitpilot.authorizedCallers(NON_AUTHORIZED));
+    }
 
-    // function test_AuthorizedCallersOnlyAuthorized() public {
-    //     vm.prank(NON_AUTHORIZED);
-    //     vm.expectRevert("Not authorized");
-    //     jitpilot.addAuthorizedCaller(address(0x6666));
+    function test_AuthorizedCallersOnlyAuthorized() public {
+        vm.prank(NON_AUTHORIZED);
+        vm.expectRevert("Not authorized");
+        jitpilot.addAuthorizedCaller(address(0x6666));
 
-    //     vm.prank(NON_AUTHORIZED);
-    //     vm.expectRevert("Not authorized");
-    //     jitpilot.removeAuthorizedCaller(AUTHORIZED_CALLER);
-    // }
+        vm.prank(NON_AUTHORIZED);
+        vm.expectRevert("Not authorized");
+        jitpilot.removeAuthorizedCaller(AUTHORIZED_CALLER);
+    }
 
-    // function test_UpdateWeights() public {
-    //     uint256 newWeightHF = 7e17; // 0.7
-    //     uint256 newWeightYield = 3e17; // 0.3
+    function test_UpdateWeights() public {
+        uint256 newWeightHF = 7e17; // 0.7
+        uint256 newWeightYield = 3e17; // 0.3
 
-    //     vm.prank(AUTHORIZED_CALLER);
-    //     jitpilot.updateWeights(newWeightHF, newWeightYield);
+        vm.prank(AUTHORIZED_CALLER);
+        jitpilot.updateWeights(newWeightHF, newWeightYield);
 
-    //     assertEq(jitpilot.weightHF(), newWeightHF);
-    //     assertEq(jitpilot.weightYield(), newWeightYield);
-    // }
+        assertEq(jitpilot.weightHF(), newWeightHF);
+        assertEq(jitpilot.weightYield(), newWeightYield);
+    }
 
-    // function test_UpdateWeightsInvalidSum() public {
-    //     vm.prank(AUTHORIZED_CALLER);
-    //     vm.expectRevert("Weights must sum to 1");
-    //     jitpilot.updateWeights(5e17, 6e17); // Sum > 1
-    // }
+    function test_UpdateWeightsInvalidSum() public {
+        vm.prank(AUTHORIZED_CALLER);
+        vm.expectRevert("Weights must sum to 1");
+        jitpilot.updateWeights(5e17, 6e17); // Sum > 1
+    }
 
-    // function test_UpdateWeightsOnlyAuthorized() public {
-    //     vm.prank(NON_AUTHORIZED);
-    //     vm.expectRevert("Not authorized");
-    //     jitpilot.updateWeights(7e17, 3e17);
-    // }
+    function test_UpdateWeightsOnlyAuthorized() public {
+        vm.prank(NON_AUTHORIZED);
+        vm.expectRevert("Not authorized");
+        jitpilot.updateWeights(7e17, 3e17);
+    }
 
-    // function test_GetLPMetrics() public {
-    //     // Configure LP
-    //     jitpilot.configureLp(LP_ADDRESS, HF_MIN, HF_DESIRED);
+    function test_GetLPMetrics() public {
+        // Configure LP
+        jitpilot.configureLp(LP_ADDRESS, HF_MIN, HF_DESIRED);
 
-    //     (uint256 compositeScore, uint256 threshold, uint256 desired, bool needsRebalance) =
-    //         jitpilot.getLPMetrics(LP_ADDRESS);
+        (uint256 compositeScore, uint256 threshold, uint256 desired, bool needsRebalance) =
+            jitpilot.getLPMetrics(LP_ADDRESS);
 
-    //     assertEq(threshold, HF_DESIRED);
-    //     assertEq(desired, HF_DESIRED);
-    //     // needsRebalance depends on composite score calculation
-    // }
+        assertEq(threshold, HF_DESIRED);
+        assertEq(desired, HF_DESIRED);
+        // needsRebalance depends on composite score calculation
+    }
 
-    // function test_RebalanceThresholds() public {
-    //     jitpilot.configureLp(LP_ADDRESS, HF_MIN, HF_DESIRED);
+    function test_RebalanceThresholds() public {
+        jitpilot.configureLp(LP_ADDRESS, HF_MIN, HF_DESIRED);
 
-    //     uint256 threshold = jitpilot.getRebalanceThreshold(LP_ADDRESS);
-    //     uint256 desired = jitpilot.getRebalanceDesired(LP_ADDRESS);
+        uint256 threshold = jitpilot.getRebalanceThreshold(LP_ADDRESS);
+        uint256 desired = jitpilot.getRebalanceDesired(LP_ADDRESS);
 
-    //     assertEq(threshold, HF_DESIRED);
-    //     assertEq(desired, HF_DESIRED);
-    // }
+        assertEq(threshold, HF_DESIRED);
+        assertEq(desired, HF_DESIRED);
+    }
 
-    // function test_SlidingWindowBehavior() public {
-    //     jitpilot.configureLp(LP_ADDRESS, HF_MIN, HF_DESIRED);
+    function test_SlidingWindowBehavior() public {
+        jitpilot.configureLp(LP_ADDRESS, HF_MIN, HF_DESIRED);
 
-    //     IMaglevLens.VaultGlobal memory globalData =
-    //         IMaglevLens.VaultGlobal({packed1: 0, packed2: (uint256(5e16) << 48) | (uint256(3e16) << 96)});
-    //     mockLens.setVaultGlobal(address(mockVault0), globalData);
-    //     mockLens.setVaultGlobal(address(mockVault1), globalData);
+        IMaglevLens.VaultGlobal memory globalData =
+            IMaglevLens.VaultGlobal({packed1: 0, packed2: (uint256(5e16) << 48) | (uint256(3e16) << 96)});
+        mockLens.setVaultGlobal(address(mockVault0), globalData);
+        mockLens.setVaultGlobal(address(mockVault1), globalData);
 
-    //     // Update metrics multiple times to test sliding window
-    //     for (uint256 i = 0; i < 5; i++) {
-    //         vm.roll(block.number + 1);
-    //         jitpilot.updateMetrics(LP_ADDRESS);
-    //     }
+        // Update metrics multiple times to test sliding window
+        for (uint256 i = 0; i < 5; i++) {
+            vm.roll(block.number + 1);
+            jitpilot.updateMetrics(LP_ADDRESS);
+        }
 
-    //     (uint256 twaHF,,,,,,,,,,,) = jitpilot.getLPData(LP_ADDRESS);
+        (uint256 twaHF,,,,,,,,,,,) = jitpilot.getLPData(LP_ADDRESS);
 
-    //     // TWA should be stable after multiple updates with same conditions
-    //     assertGt(twaHF, 0);
-    // }
+        // TWA should be stable after multiple updates with same conditions
+        assertGt(twaHF, 0);
+    }
 }

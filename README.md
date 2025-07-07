@@ -49,7 +49,6 @@ The repository includes comprehensive unit and integration tests for the JITpilo
 ### Test Files
 
 - **`test/JITpilot.t.sol`**: Comprehensive unit tests covering all contract functions with mocked dependencies
-- **`test/JITpilotIntegration.t.sol`**: Integration tests for complex scenarios involving multiple LPs and various market conditions
 - **`test/JITpilotCore.t.sol`**: Core functionality tests without complex mocking, focusing on basic contract operations
 
 ### Running Tests

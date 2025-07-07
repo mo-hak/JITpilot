@@ -1,10 +1,25 @@
-# JITpilot
+# JIT-Pilot: Automated Rebalancing Solution for Safer, More Profitable Liquidity Provision
 
-JITpilot is an EulerSwap liquidity pool rebalancing system which allows users to set up automated monitoring for their EulerSwap positions, and rebalance them when needed by reparametrizing their pool and letting the market arbitrage the new state. It is a work in progress and is not ready for production use.
+**JIT-Pilot** is an EulerSwap liquidity pool rebalancing system which allows users to set up automated monitoring for their EulerSwap positions, and rebalance them. Our breakthrough innovation(special thanks to Fractal for enabling us to think in this direction)—reimagines the process where instead of arbitrageurs exploiting LPs and causing Loss-Versus-Rebalancing (LVR) exploitation, JIT-Pilot harnesses arbitrage to *benefit* LPs, incentivizing trades that reduce debt and restore pool health. This flips a long-standing DeFi challenge into a powerful advantage, making JIT-Pilot a first-of-its-kind solution.
 
-* Time-weighted metrics: JITpilot uses time-weighted metrics to mitigate the effects of volatile markets and prevent frequent rebalancing that could increase gas costs.
-* EVC-friendly: JITpilot is designed to work with the EulerVaultConnector (EVC) to better integrate into the Euler ecosystem.
-* Peace of mind: Rest easy; while your EulerSwap pool rakes in yield and fees, JITpilot will keep it healthy.
+## Why JIT-Pilot?
+
+EulerSwap’s JIT liquidity pools combine an automated market maker (AMM) with Euler’s lending vaults, enabling LPs to provide deep liquidity (up to 50x more than traditional AMMs) with minimal capital while earning swap fees and lending yield. However, one-sided trades create debt that accrues interest and push the Loan-to-Value (LTV) ratio toward liquidation. Naive rebalancing to unwind debt can lock in impermanent loss (IL), especially in volatile markets.
+
+JIT-Pilot solves this by:
+- **Monitoring Smarts**: JITpilot uses time-weighted metrics to mitigate the effects of volatile markets and prevent frequent rebalancing that could increase gas costs.
+- **Arbitrage-Driven Rebalancing**: Adjusts pool parameters to attract arbitrageurs, who trade debt assets back into the pool, reducing LP debt without costly external swaps.
+- **EVC-friendly**: JITpilot is designed to work with the EulerVaultConnector (EVC) to better integrate into the Euler ecosystem.
+- **Peace of mind**: LPs set their own safety and target thresholds for rebalancing.
+
+
+## Architecture
+
+![Architecture Diagram](/public/Architecture.png)
+
+
+## How It Works
+Check out the [Demo Video](https://youtu.be/VhBSw_lQXVc) and [Presentation Video](https://youtu.be/4c98wW6DLSY) for a detailed walkthrough. Check [math.md](/math.md) for Mathematical Models used.
 
 ## Usage
 

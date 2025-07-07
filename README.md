@@ -1,66 +1,43 @@
-## Foundry
+# JITpilot
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+JITpilot is an EulerSwap liquidity pool rebalancing system which allows users to set up automated monitoring for their EulerSwap positions, and rebalance them when needed by reparametrizing their pool and letting the market arbitrage the new state. It is a work in progress and is not ready for production use.
 
-Foundry consists of:
-
--   **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
--   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
--   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
--   **Chisel**: Fast, utilitarian, and verbose solidity REPL.
-
-## Documentation
-
-https://book.getfoundry.sh/
+* Time-weighted metrics: JITpilot uses time-weighted metrics to mitigate the effects of volatile markets and prevent frequent rebalancing that could increase gas costs.
+* EVC-friendly: JITpilot is designed to work with the EulerVaultConnector (EVC) to better integrate into the Euler ecosystem.
+* Peace of mind: Rest easy; while your EulerSwap pool rakes in yield and fees, JITpilot will keep it healthy.
 
 ## Usage
 
-### Build
+### Installation
 
-```shell
-$ forge build
+First [install foundry](https://getfoundry.sh/) then run:
+```sh
+./install.sh
 ```
 
-### Test
-
-```shell
-$ forge test
+### Run example scripts
+```sh
+./devland.sh JITpilotRebalanceScenario
 ```
 
-### Format
+If all goes well, your RPC will be available on the standard `http://127.0.0.1:8545` endpoint. It will print the logs pertaining to the EulerSwap pool rebalancing.
+![alt text](image.png)
 
-```shell
-$ forge fmt
+### Setting up an LP
+```solidity
+    JITpilot.configureLp(address _lp, uint256 _hfMin, uint256 _hfDesired);
 ```
+To start monitoring your EulerSwap LP position, you need to call the `configureLp` function with the following parameters:
 
-### Gas Snapshots
+* `_lp`: The address of your EulerSwap LP position.
+* `_hfMin`: The minimum health factor for your LP position.
+* `_hfDesired`: The desired health factor for your LP position.
 
-```shell
-$ forge snapshot
+### Monitoring and rebalancing
+```solidity
+    JITpilot.updateMetrics(address _lp);
 ```
+This function will update the metrics for the given LP. It will calculate the time-weighted average of the health factor and yield, and trigger a rebalance if needed, or trigger the EulerSwap reparametrization to the original state once the desired health factor is reached.
 
-### Anvil
-
-```shell
-$ anvil
-```
-
-### Deploy
-
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
-
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
+### Testing different scenarios
+This repository is built on top of [euler-devland](https://github.com/euler-xyz/euler-devland), which is a tool for testing EulerSwap scenarios. You can find more information about it [here](https://github.com/euler-xyz/euler-devland). You can craft different scenarios where rebalancing could be needed and test them with JITpilot.

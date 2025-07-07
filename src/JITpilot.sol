@@ -291,44 +291,11 @@ contract JITpilot {
     }
 
     /**
-     * @dev Calculate dynamic rebalance threshold based on LP configuration (placeholder)
-     * @param lp LP address
-     * @return rebalanceThreshold Dynamic threshold based on hfMin and safety margin
-     */
-    function calculateRebalanceThreshold(address lp) internal view returns (uint256) {
-        LPData storage data = lpData[lp];
-        if (!data.initialized) return 0;
-
-        // Placeholder implementation - to be researched and implemented
-        // Should calculate threshold based on hfMin as main parameter
-        // with thresholdSafetyMargin for fine-tuning
-        return data.hfDesired; // Default hfDesired for now
-    }
-
-    /**
-     * @dev Calculate dynamic rebalance desired target based on LP configuration (placeholder)
-     * @param lp LP address
-     * @return rebalanceDesired Target score to achieve after rebalancing
-     */
-    function calculateRebalanceDesired(address lp) internal view returns (uint256) {
-        LPData storage data = lpData[lp];
-        if (!data.initialized) return 0;
-
-        // Placeholder implementation - to be researched and implemented
-        // Should calculate target based on hfDesired and yieldTarget as main parameters
-        // with desiredTargetRatio for fine-tuning
-        return 8e17; // Default 0.8 for now
-    }
-
-    /**
      * @dev Fetch current block data (placeholder - to be implemented later)
      * @param lp LP address
      * @return BlockData struct with current metrics
      */
     function fetchData(address lp) internal view returns (BlockData memory) {
-        // Placeholder implementation - this will fetch real data from Euler contracts
-        // For now, return dummy data to avoid compilation errors
-
         // update EulerSwap pool data
         address poolAddr = IEulerSwapFactory(eulerSwapFactoryAddress).poolByEulerAccount(lp);
         EulerSwapData memory eulerSwapData = getEulerSwapData(poolAddr);
@@ -422,8 +389,6 @@ contract JITpilot {
      * @param lp LP address to rebalance
      */
     function _rebalance(address lp) internal {
-        // Placeholder implementation - this will perform actual rebalancing
-        // Will be implemented in later iterations
         // This function is only called after confirming that a rebalance is needed
 
         // #1 Fetch current EulerSwap data

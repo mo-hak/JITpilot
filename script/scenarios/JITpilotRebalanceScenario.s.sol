@@ -15,7 +15,7 @@ import {CurveLib} from "euler-swap/libraries/CurveLib.sol";
 
 import {console2 as console} from "forge-std/console2.sol";
 
-contract EulerSwapDebtScenario is DeployScenario {
+contract JITpilotRebalanceScenario is DeployScenario {
     address eulerSwap;
     JITpilot jitPilot;
 
@@ -30,16 +30,9 @@ contract EulerSwapDebtScenario is DeployScenario {
         deployJITpilot();
         vm.stopBroadcast();
 
-        vm.startBroadcast(user2PK);
-        deployEulerSwap(getInitialEulerSwapParams(), false);
-        authorizeJITpilot(user2);
-        jitPilot.configureLp(user2, 1.4e18, 1.5e18);
-        vm.stopBroadcast();
-
         // create borrow positions for other users
         giveTonsOfCash(user0);
         giveTonsOfCash(user1);
-        // giveTonsOfCash(user3);
 
         depositCollateralIntoVault(user0, user0PK, address(eUSDC), 3_000_000_000e6);
         depositCollateralIntoVault(user1, user1PK, address(eWETH), 1_000_000e18);
@@ -47,25 +40,38 @@ contract EulerSwapDebtScenario is DeployScenario {
         borrowFromVault(user0, user0PK, address(eWETH), 500_000e18);
         borrowFromVault(user1, user1PK, address(eUSDC), 1_600_000_000e6);
 
+        vm.startBroadcast(user2PK);
+        deployEulerSwap(getInitialEulerSwapParams(), false);
+        authorizeJITpilot(user2);
+        jitPilot.configureLp(user2, 1.4e18, 1.5e18);
+        vm.stopBroadcast();
+
+        // Initial EulerSwap state
+        console.log("Initial EulerSwap state: ");
+        printEulerSwapData(user2);
+
         // buy USDC so that user2's EulerSwap position has to borrow USDC
         uint256 amountOut = 286_500_000e6;
         uint256 amountIn = _swapExactOut(address(assetWETH), address(assetUSDC), amountOut, user0, user0PK);
         console.log("marketUser SOLD %s WETH FOR %s USDC", amountIn, amountOut);
 
-        // user2 is in debt now. Let's fetch that data
-        console.log("EulerSwap state now after servicing trades: ");
-        printEulerSwapData(user2);
-
         // Get a quote for the current price of ETH in the EulerSwap instance
-        uint256 ethPrice = eulerSwapPeriphery.quoteExactOutput(eulerSwap, address(assetUSDC), address(assetWETH), 1e18);
-        console.log("New price of ETH: ", ethPrice);
+        uint256 startingEthPrice = 2865e18;
+        uint256 ethPriceInUSDC = eulerSwapPeriphery.quoteExactOutput(eulerSwap, address(assetUSDC), address(assetWETH), 1e18);
+        console.log("Starting price of ETH: ", startingEthPrice);
+        console.log("New price of ETH:      ", ethPriceInUSDC);
 
         // ETH price has dropped to ~2510. Let's update the oracle
         vm.prank(user3);
-        oracle.setPrice(address(eWETH), unitOfAccount, ethPrice * 1e18 / 1e6);
+        oracle.setPrice(address(eWETH), unitOfAccount, ethPriceInUSDC * 1e18 / 1e6);
+
+        // user2 is in debt now. Let's see their position state
+        console.log("EulerSwap state now after servicing trades: ");
+        printEulerSwapData(user2);
 
         // Let's see what the rebalancing params would be
         IEulerSwap.Params memory newParams = jitPilot.getRebalancingParams(user2);
+        console.log("Rebalancing params:");
         printEulerSwapParams(newParams);
 
         // let's do the actual rebalancing then
@@ -76,24 +82,23 @@ contract EulerSwapDebtScenario is DeployScenario {
         deployEulerSwap(newParams, true);
         vm.stopBroadcast();
 
-        // Now let's see if the rebalancing was successful
-        address poolAddr = eulerSwapFactory.poolByEulerAccount(user2);
-        newParams = IEulerSwap(poolAddr).getParams();
-        printEulerSwapParams(newParams);
+        // EulerSwap state before arbitrage
+        console.log("EulerSwap state now after rebalancing, before arbitrage: ");
+        printEulerSwapData(user2);
 
         // Let's buy some WETH on the EulerSwap pool and see the effect on the debt
         // sell USDC so that user2's EulerSwap position has to borrow USDC
         uint256 newEthPrice = eulerSwapPeriphery.quoteExactOutput(eulerSwap, address(assetUSDC), address(assetWETH), 1e18);
-        console.log("price of ETH (market): ", ethPrice);
+        console.log("price of ETH (market): ", ethPriceInUSDC);
         console.log("price of ETH (EulerSwap): ", newEthPrice);
-        amountIn = 105_000_000e6;
+        amountIn = 101_000_000e6;
         amountOut = _swapExactIn(address(assetUSDC), address(assetWETH), amountIn, user0, user0PK);
         console.log("marketUser BOUGHT %s WETH FOR %s USDC (price: %s)", amountOut, amountIn, amountIn * 1e18 / amountOut);
+        console.log("price of ETH (EulerSwap, after arbitrage): ", eulerSwapPeriphery.quoteExactOutput(eulerSwap, address(assetUSDC), address(assetWETH), 1e18));
 
         // Let's see the new state of the EulerSwap pool after arbitrage
         console.log("EulerSwap state now (after arbitrage):");
         printEulerSwapData(user2);
-        console.log("price of ETH (EulerSwap, after arbitrage): ", eulerSwapPeriphery.quoteExactOutput(eulerSwap, address(assetUSDC), address(assetWETH), 1e18));
     }
 
     function giveTonsOfCash(address user) internal virtual {
@@ -279,12 +284,12 @@ contract EulerSwapDebtScenario is DeployScenario {
         console.log("vault0:               ", params.vault0);
         console.log("vault1:               ", params.vault1);
         console.log("eulerAccount:         ", params.eulerAccount);
-        console.log("equilibriumReserve0:  ", params.equilibriumReserve0);
-        console.log("equilibriumReserve1:  ", params.equilibriumReserve1);
+        console.log("equilibriumReserve0:  ", params.equilibriumReserve0, "<---------------");
+        console.log("equilibriumReserve1:  ", params.equilibriumReserve1, "<---------------");
         console.log("priceX:               ", params.priceX);
         console.log("priceY:               ", params.priceY);
-        console.log("concentrationX:       ", params.concentrationX);
-        console.log("concentrationY:       ", params.concentrationY);
+        console.log("concentrationX:       ", params.concentrationX, "<---------------");
+        console.log("concentrationY:       ", params.concentrationY, "<---------------");
         console.log("fee:                  ", params.fee);
         console.log("protocolFee:          ", params.protocolFee);
         console.log("protocolFeeRecipient: ", params.protocolFeeRecipient);
@@ -294,9 +299,10 @@ contract EulerSwapDebtScenario is DeployScenario {
     function printEulerSwapData(address user) internal view {
 
         JITpilot.BlockData memory blockData = jitPilot.getData(user);
+        uint256 healthFactor = blockData.allowedLTV > 0 ? blockData.allowedLTV * 1e4 / blockData.currentLTV / 100 : 0;
 
         console.log("==========================================================");
-        console.log("healthFactor:    ", blockData.allowedLTV * 1e4 / blockData.currentLTV / 100, "%");
+        console.log("healthFactor:    ", healthFactor, "%");
         console.log("allowedLTV:      ", blockData.allowedLTV);
         console.log("currentLTV:      ", blockData.currentLTV);
         console.log("swapFees:        ", blockData.swapFees);

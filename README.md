@@ -21,7 +21,7 @@ First [install foundry](https://getfoundry.sh/) then run:
 ```
 
 If all goes well, your RPC will be available on the standard `http://127.0.0.1:8545` endpoint. It will print the logs pertaining to the EulerSwap pool rebalancing.
-![alt text](image.png)
+![alt text](public/JITpilot_output.png)
 
 ### Setting up an LP
 ```solidity
@@ -41,3 +41,30 @@ This function will update the metrics for the given LP. It will calculate the ti
 
 ### Testing different scenarios
 This repository is built on top of [euler-devland](https://github.com/euler-xyz/euler-devland), which is a tool for testing EulerSwap scenarios. You can find more information about it [here](https://github.com/euler-xyz/euler-devland). You can craft different scenarios where rebalancing could be needed and test them with JITpilot.
+
+## Tests
+
+The repository includes comprehensive unit and integration tests for the JITpilot contract using the Foundry testing framework.
+
+### Test Files
+
+- **`test/JITpilot.t.sol`**: Comprehensive unit tests covering all contract functions with mocked dependencies
+- **`test/JITpilotCore.t.sol`**: Core functionality tests without complex mocking, focusing on basic contract operations
+
+### Running Tests
+
+```bash
+# Run all tests
+forge test
+```
+
+### Test Coverage
+
+The tests cover:
+
+- **Access Control**: Owner-only functions, authorized caller management
+- **Configuration**: LP setup, parameter validation, multiple LP management
+- **Metrics Calculation**: Health factor and yield calculations, time-weighted averages
+- **Rebalancing Logic**: Trigger conditions, status transitions, parameter calculations
+- **Edge Cases**: Zero balances, missing controllers, different token decimals
+- **Fuzz Testing**: Property-based testing for weight management and LP configuration

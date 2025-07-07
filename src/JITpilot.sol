@@ -27,6 +27,7 @@ contract JITpilot {
     // Constants
     uint256 private constant WINDOW_SIZE = 100;
     uint256 private constant PRECISION = 1e18;
+
     enum RebalancingStatus {
         NOT_REBALANCING,
         REBALANCING
@@ -152,7 +153,6 @@ contract JITpilot {
         data.startBlock = block.number;
         data.rebalanceThreshold = _hfDesired;
         data.rebalanceDesired = _hfDesired;
-        
 
         emit LPConfigured(lp, _hfMin, _hfDesired);
     }
@@ -298,13 +298,13 @@ contract JITpilot {
     function calculateRebalanceThreshold(address lp) internal view returns (uint256) {
         LPData storage data = lpData[lp];
         if (!data.initialized) return 0;
-        
+
         // Placeholder implementation - to be researched and implemented
         // Should calculate threshold based on hfMin as main parameter
         // with thresholdSafetyMargin for fine-tuning
         return data.hfDesired; // Default hfDesired for now
     }
-    
+
     /**
      * @dev Calculate dynamic rebalance desired target based on LP configuration (placeholder)
      * @param lp LP address
@@ -313,7 +313,7 @@ contract JITpilot {
     function calculateRebalanceDesired(address lp) internal view returns (uint256) {
         LPData storage data = lpData[lp];
         if (!data.initialized) return 0;
-        
+
         // Placeholder implementation - to be researched and implemented
         // Should calculate target based on hfDesired and yieldTarget as main parameters
         // with desiredTargetRatio for fine-tuning
@@ -494,13 +494,19 @@ contract JITpilot {
         (uint256 collateralValueTotal, uint256 debtValue) = _getDepositValue(lp);
         uint256 depositValue = collateralValueTotal - debtValue;
 
-        uint256 asset0Scale = FixedPointMathLib.rpow(10e18, IERC20(IEVault(eulerSwapData.params.vault0).asset()).decimals(), 1e18) / 1e18;
-        uint256 asset1Scale = FixedPointMathLib.rpow(10e18, IERC20(IEVault(eulerSwapData.params.vault1).asset()).decimals(), 1e18) / 1e18;
+        uint256 asset0Scale =
+            FixedPointMathLib.rpow(10e18, IERC20(IEVault(eulerSwapData.params.vault0).asset()).decimals(), 1e18) / 1e18;
+        uint256 asset1Scale =
+            FixedPointMathLib.rpow(10e18, IERC20(IEVault(eulerSwapData.params.vault1).asset()).decimals(), 1e18) / 1e18;
         uint256 asset0PriceUsd = IPriceOracle(IEVault(eulerSwapData.params.vault0).oracle()).getQuote(
-            asset0Scale, IEVault(eulerSwapData.params.vault0).asset(), IEVault(eulerSwapData.params.vault0).unitOfAccount()
+            asset0Scale,
+            IEVault(eulerSwapData.params.vault0).asset(),
+            IEVault(eulerSwapData.params.vault0).unitOfAccount()
         );
         uint256 asset1PriceUsd = IPriceOracle(IEVault(eulerSwapData.params.vault1).oracle()).getQuote(
-            asset1Scale, IEVault(eulerSwapData.params.vault1).asset(), IEVault(eulerSwapData.params.vault1).unitOfAccount()
+            asset1Scale,
+            IEVault(eulerSwapData.params.vault1).asset(),
+            IEVault(eulerSwapData.params.vault1).unitOfAccount()
         );
 
         // Calculate balancedEquilibriumReserves given current depositValue
@@ -512,20 +518,18 @@ contract JITpilot {
                 // we've chosen an arbitrary amount of 3x deltaReserves and a 99.3% concentration to prevent over-borrowing and allow for arbitrage
                 desiredEqRsvDebtAsset = deltaReservesValueUsd * 3 * asset0Scale / asset0PriceUsd;
 
-                uint256 balEqRsv1 = depositValue * 1e4 / (1e4 - eulerSwapData.borrowLTV01) * asset1Scale / asset1PriceUsd;
-                desiredEqRsvCollateralAsset = balEqRsv1
-                    + depositValue * asset1Scale / 2 / asset1PriceUsd
-                    + debtValue * asset1Scale / asset1PriceUsd
-                    - deltaReservesValueUsd * asset1Scale / asset1PriceUsd;
+                uint256 balEqRsv1 =
+                    depositValue * 1e4 / (1e4 - eulerSwapData.borrowLTV01) * asset1Scale / asset1PriceUsd;
+                desiredEqRsvCollateralAsset = balEqRsv1 + depositValue * asset1Scale / 2 / asset1PriceUsd
+                    + debtValue * asset1Scale / asset1PriceUsd - deltaReservesValueUsd * asset1Scale / asset1PriceUsd;
             } else {
                 // we've chosen an arbitrary amount of 3x deltaReserves and a 99% concentration to prevent over-borrowing and allow for arbitrage
                 desiredEqRsvDebtAsset = deltaReservesValueUsd * 3 * asset1Scale / asset1PriceUsd;
 
-                uint256 balEqRsv0 = depositValue * 1e4 / (1e4 - eulerSwapData.borrowLTV01) * asset0Scale / asset0PriceUsd;
-                desiredEqRsvCollateralAsset = balEqRsv0
-                    + depositValue * asset0Scale / 2 / asset0PriceUsd
-                    + debtValue * asset0Scale / asset0PriceUsd
-                    - deltaReservesValueUsd * asset0Scale / asset0PriceUsd;
+                uint256 balEqRsv0 =
+                    depositValue * 1e4 / (1e4 - eulerSwapData.borrowLTV01) * asset0Scale / asset0PriceUsd;
+                desiredEqRsvCollateralAsset = balEqRsv0 + depositValue * asset0Scale / 2 / asset0PriceUsd
+                    + debtValue * asset0Scale / asset0PriceUsd - deltaReservesValueUsd * asset0Scale / asset0PriceUsd;
             }
         }
         uint256 concentrationDebtAsset = 99.3 * 1e16;
@@ -557,8 +561,7 @@ contract JITpilot {
         // $\Delta L = \frac{\frac{HF'}{LLTV} \cdot L - C}{\frac{HF'}{LLTV} - 1}$
         uint256 hfPrime = lpData[lp].hfDesired;
         address controllerVault = _getCurrentControllerVault(lp);
-        address collateralVault =
-            controllerVault == poolParams.vault0 ? poolParams.vault1 : poolParams.vault0;
+        address collateralVault = controllerVault == poolParams.vault0 ? poolParams.vault1 : poolParams.vault0;
         uint256 lltv = uint256(IEVault(controllerVault).LTVLiquidation(collateralVault)) * 1e18 / 1e4;
 
         uint256 collateralValue = _getPositionValue(lp, collateralVault, false);
@@ -673,7 +676,7 @@ contract JITpilot {
     function getRebalanceThreshold(address lp) external view returns (uint256) {
         return lpData[lp].rebalanceThreshold;
     }
-    
+
     /**
      * @dev Get rebalance desired target for an LP
      * @param lp LP address
@@ -682,7 +685,7 @@ contract JITpilot {
     function getRebalanceDesired(address lp) external view returns (uint256) {
         return lpData[lp].rebalanceDesired;
     }
-    
+
     /**
      * @dev Get all key metrics for an LP in one call
      * @param lp LP address
@@ -691,12 +694,11 @@ contract JITpilot {
      * @return desired Rebalance target
      * @return needsRebalance Whether LP currently needs rebalancing
      */
-    function getLPMetrics(address lp) external view returns (
-        uint256 compositeScore,
-        uint256 threshold,
-        uint256 desired,
-        bool needsRebalance
-    ) {
+    function getLPMetrics(address lp)
+        external
+        view
+        returns (uint256 compositeScore, uint256 threshold, uint256 desired, bool needsRebalance)
+    {
         LPData storage data = lpData[lp];
         compositeScore = this.getCompositeScore(lp);
         threshold = data.rebalanceThreshold;

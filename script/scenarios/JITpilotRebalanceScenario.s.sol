@@ -57,7 +57,8 @@ contract JITpilotRebalanceScenario is DeployScenario {
 
         // Get a quote for the current price of ETH in the EulerSwap instance
         uint256 startingEthPrice = 2865e18;
-        uint256 ethPriceInUSDC = eulerSwapPeriphery.quoteExactOutput(eulerSwap, address(assetUSDC), address(assetWETH), 1e18);
+        uint256 ethPriceInUSDC =
+            eulerSwapPeriphery.quoteExactOutput(eulerSwap, address(assetUSDC), address(assetWETH), 1e18);
         console.log("Starting price of ETH: ", startingEthPrice);
         console.log("New price of ETH:      ", ethPriceInUSDC);
 
@@ -88,13 +89,19 @@ contract JITpilotRebalanceScenario is DeployScenario {
 
         // Let's buy some WETH on the EulerSwap pool and see the effect on the debt
         // sell USDC so that user2's EulerSwap position has to borrow USDC
-        uint256 newEthPrice = eulerSwapPeriphery.quoteExactOutput(eulerSwap, address(assetUSDC), address(assetWETH), 1e18);
+        uint256 newEthPrice =
+            eulerSwapPeriphery.quoteExactOutput(eulerSwap, address(assetUSDC), address(assetWETH), 1e18);
         console.log("price of ETH (market): ", ethPriceInUSDC);
         console.log("price of ETH (EulerSwap): ", newEthPrice);
         amountIn = 101_000_000e6;
         amountOut = _swapExactIn(address(assetUSDC), address(assetWETH), amountIn, user0, user0PK);
-        console.log("marketUser BOUGHT %s WETH FOR %s USDC (price: %s)", amountOut, amountIn, amountIn * 1e18 / amountOut);
-        console.log("price of ETH (EulerSwap, after arbitrage): ", eulerSwapPeriphery.quoteExactOutput(eulerSwap, address(assetUSDC), address(assetWETH), 1e18));
+        console.log(
+            "marketUser BOUGHT %s WETH FOR %s USDC (price: %s)", amountOut, amountIn, amountIn * 1e18 / amountOut
+        );
+        console.log(
+            "price of ETH (EulerSwap, after arbitrage): ",
+            eulerSwapPeriphery.quoteExactOutput(eulerSwap, address(assetUSDC), address(assetWETH), 1e18)
+        );
 
         // Let's see the new state of the EulerSwap pool after arbitrage
         console.log("EulerSwap state now (after arbitrage):");
@@ -126,7 +133,6 @@ contract JITpilotRebalanceScenario is DeployScenario {
     }
 
     function deployEulerSwap(IEulerSwap.Params memory poolParams, bool rebalancing) internal {
-
         console.log("DEPLOYING EULERSWAP WITH PARAMS");
         printEulerSwapParams(poolParams);
 
@@ -136,23 +142,44 @@ contract JITpilotRebalanceScenario is DeployScenario {
 
         IEulerSwap.InitialState memory initialState;
         if (!rebalancing) {
-            initialState = IEulerSwap.InitialState({currReserve0: poolParams.equilibriumReserve0, currReserve1: poolParams.equilibriumReserve1});
-        } else { 
+            initialState = IEulerSwap.InitialState({
+                currReserve0: poolParams.equilibriumReserve0,
+                currReserve1: poolParams.equilibriumReserve1
+            });
+        } else {
             if (asset0IsDebt) {
                 {
-                    uint256 deltaReservesAsset0 = poolParams.equilibriumReserve0 * 1/3;
+                    uint256 deltaReservesAsset0 = poolParams.equilibriumReserve0 * 1 / 3;
                     // uint256 deltaReservesAsset1 = deltaReservesAsset0 * poolParams.priceX / poolParams.priceY;
                     currentReserve0 = uint112(poolParams.equilibriumReserve0 - deltaReservesAsset0);
                     // currentReserve1 = uint112(poolParams.equilibriumReserve1 + deltaReservesAsset1);
-                    currentReserve1 = uint112(CurveLib.f(uint256(currentReserve0), uint256(poolParams.priceX), uint256(poolParams.priceY), uint256(poolParams.equilibriumReserve0), uint256(poolParams.equilibriumReserve1), uint256(poolParams.concentrationX)));
+                    currentReserve1 = uint112(
+                        CurveLib.f(
+                            uint256(currentReserve0),
+                            uint256(poolParams.priceX),
+                            uint256(poolParams.priceY),
+                            uint256(poolParams.equilibriumReserve0),
+                            uint256(poolParams.equilibriumReserve1),
+                            uint256(poolParams.concentrationX)
+                        )
+                    );
                 }
             } else {
                 {
-                    uint256 deltaReservesAsset1 = poolParams.equilibriumReserve1 * 1/3;
+                    uint256 deltaReservesAsset1 = poolParams.equilibriumReserve1 * 1 / 3;
                     // uint256 deltaReservesAsset0 = deltaReservesAsset1 * poolParams.priceY / poolParams.priceX;
                     currentReserve1 = uint112(poolParams.equilibriumReserve1 - deltaReservesAsset1);
                     // currentReserve0 = uint112(poolParams.equilibriumReserve0 + deltaReservesAsset0);
-                    currentReserve0 = uint112(CurveLib.fInverse(uint256(currentReserve1), uint256(poolParams.priceY), uint256(poolParams.priceX), uint256(poolParams.equilibriumReserve1), uint256(poolParams.equilibriumReserve0), uint256(poolParams.concentrationY)));
+                    currentReserve0 = uint112(
+                        CurveLib.fInverse(
+                            uint256(currentReserve1),
+                            uint256(poolParams.priceY),
+                            uint256(poolParams.priceX),
+                            uint256(poolParams.equilibriumReserve1),
+                            uint256(poolParams.equilibriumReserve0),
+                            uint256(poolParams.concentrationY)
+                        )
+                    );
                 }
             }
             initialState = IEulerSwap.InitialState({currReserve0: currentReserve0, currReserve1: currentReserve1});
@@ -297,7 +324,6 @@ contract JITpilotRebalanceScenario is DeployScenario {
     }
 
     function printEulerSwapData(address user) internal view {
-
         JITpilot.BlockData memory blockData = jitPilot.getData(user);
         uint256 healthFactor = blockData.allowedLTV > 0 ? blockData.allowedLTV * 1e4 / blockData.currentLTV / 100 : 0;
 
@@ -311,7 +337,7 @@ contract JITpilotRebalanceScenario is DeployScenario {
         console.log("controllerVault: ", blockData.controllerVault);
         console.log("==========================================================");
     }
-    
+
     function getCurrentControllerVault(address lp) internal view returns (address) {
         address[] memory controllerVaults = evc.getControllers(lp);
         address currentControllerVault;

@@ -1,14 +1,14 @@
 # JIT-Pilot: Automated Rebalancing Solution for Safer, More Profitable Liquidity Provision
 
-**JIT-Pilot** is an EulerSwap liquidity pool rebalancing system which allows users to set up automated monitoring for their EulerSwap positions, and rebalance them. Our breakthrough innovation(special thanks to Fractal for enabling us to think in this direction)—reimagines the process where instead of arbitrageurs exploiting LPs and causing Loss-Versus-Rebalancing (LVR) exploitation, JIT-Pilot harnesses arbitrage to *benefit* LPs, incentivizing trades that reduce debt and restore pool health. This flips a long-standing DeFi challenge into a powerful advantage, making JIT-Pilot a first-of-its-kind solution.
+**JIT-Pilot** is an EulerSwap liquidity pool rebalancing system which allows users to set up automated monitoring for their EulerSwap positions, and rebalance them. Our breakthrough innovation(special thanks to Fractal from Euler Labs for enabling us to think in this direction)—reimagines the process in which arbitrageurs capitalize on price discrepancies at the expense of liquidity providers, leading to Loss-Versus-Rebalancing (LVR) exploitation, JIT-Pilot harnesses arbitrage to *benefit* LPs, incentivizing trades that reduce debt and restore pool health. This flips a long-standing DeFi challenge into a powerful advantage, making JIT-Pilot a first-of-its-kind solution.
 
 ## Why JIT-Pilot?
 
-EulerSwap’s JIT liquidity pools combine an automated market maker (AMM) with Euler’s lending vaults, enabling LPs to provide deep liquidity (up to 50x more than traditional AMMs) with minimal capital while earning swap fees and lending yield. However, one-sided trades create debt that accrues interest and push the Loan-to-Value (LTV) ratio toward liquidation. Naive rebalancing to unwind debt can lock in impermanent loss (IL), especially in volatile markets.
+EulerSwap’s JIT liquidity pools combine an automated market maker (AMM) with Euler’s lending vaults, enabling LPs to provide deep liquidity (up to 50x more than traditional AMMs) with minimal capital while earning swap fees and lending yield. However, one-sided trades create debt that accrues interest and push the Loan-to-Value (LTV) ratio towards liquidation. Naive rebalancing to unwind debt can lock in impermanent loss, especially in volatile markets.
 
 JIT-Pilot solves this by:
-- **Monitoring Smarts**: JITpilot uses time-weighted metrics to mitigate the effects of volatile markets and prevent frequent rebalancing that could increase gas costs.
-- **Arbitrage-Driven Rebalancing**: Adjusts pool parameters to attract arbitrageurs, who trade debt assets back into the pool, reducing LP debt without costly external swaps.
+- **Monitoring Smarts**: JITpilot uses time-weighted metrics to mitigate the effects of volatile markets and prevent frequent rebalancing that could crystalize impermanent loss and increase gas costs.
+- **Arbitrage-Driven Rebalancing**: Adjusts pool parameters to attract arbitrageurs, who trade debt assets back into the pool, thereby reducing liabilities for LPs without relying on complex and costly solutions like hedging or external debt-clearing swaps.
 - **EVC-friendly**: JITpilot is designed to work with the EulerVaultConnector (EVC) to better integrate into the Euler ecosystem.
 - **Peace of mind**: LPs set their own safety and target thresholds for rebalancing.
 
